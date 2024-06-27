@@ -21,9 +21,9 @@ class Interpreter:
     # <英字> ::= a-z | A-Z
     ALPHABET = "A-z"
     # <数値> ::= <正数字><数値> | -<正数字><数値> | <数字>
-    INT_VAL = "-{0,1}" + f"[{POSITIVE_NUM}][{NUM}]*"
-    REAL_VAL = "-{0,1}" + f"[{NUM}]+\\.[{NUM}]+"
-    NUM_VAL = f"({INT_VAL}|{REAL_VAL})"
+    INT_VAL = "-?" + f"[{NUM}]+"
+    REAL_VAL = f"{INT_VAL}(?:\\.[{NUM}]+)?"
+    NUM_VAL = f"({REAL_VAL})"
     # <名前>
     NAME = f"[{ALPHABET}]([{ALPHABET}]|[{NUM}])*"
     # <被演算子>

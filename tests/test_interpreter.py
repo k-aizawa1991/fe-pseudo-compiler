@@ -1,6 +1,24 @@
 from src.interpreter import Interpreter
 
 
+def test_get_real_num_pattern():
+    interpreter = Interpreter()
+    actual_str, remain = interpreter.get_pattern_and_remain(
+        interpreter.num_val_pattern, "123+4"
+    )
+    assert actual_str == "123"
+    assert remain == "+4"
+
+
+def test_get_int_num_pattern():
+    interpreter = Interpreter()
+    actual_str, remain = interpreter.get_pattern_and_remain(
+        interpreter.num_val_pattern, "0.123+4.56"
+    )
+    assert actual_str == "0.123"
+    assert remain == "+4.56"
+
+
 def test_interpret_operand_num():
     interpreter = Interpreter()
     actual_val, remain = interpreter.interpret_operand("145+14", [])
@@ -30,10 +48,24 @@ def test_interpret_arithmetic_formula():
     assert remain == ""
 
 
-def test_interpret_arithmetic_formula_double_mul():
+def test_interpret_arithmetic_formula_double_mul_div():
     interpreter = Interpreter()
-    actual_val, remain = interpreter.interpret_arithmetic_formula("1*2*3-4", [])
-    assert actual_val == 2
+    actual_val, remain = interpreter.interpret_arithmetic_formula("1*2*3/4", [])
+    assert actual_val == 1.5
+    assert remain == ""
+
+
+def test_interpret_arithmetic_formula_div_sub():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("24/2/3-4", [])
+    assert actual_val == 0
+    assert remain == ""
+
+
+def test_interpret_arithmetic_decimal():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2.5 / 0.25 / 5 / 2")
+    assert actual_val == 2.5 / 0.25 / 5 / 2
     assert remain == ""
 
 
