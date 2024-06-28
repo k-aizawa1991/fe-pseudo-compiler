@@ -81,3 +81,114 @@ def test_interpret_arithmetic_formula_double_parenthesis():
     actual_val, remain = interpreter.interpret_arithmetic_formula("((1+2)*3-4)*5", [])
     assert actual_val == 25
     assert remain == ""
+
+
+def test_interpret_formula_gtlt():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3>2*3")
+    assert not actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3<2*3")
+    assert actual_val
+    assert remain == ""
+
+def test_interpret_formula_gtelte():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3>=2*3")
+    assert not actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3<=2*3")
+    assert actual_val
+    assert remain == ""
+
+
+def test_interpret_formula_eqneq():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3==2*3")
+    assert not actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3!=2*3")
+    assert actual_val
+    assert remain == ""
+
+def test_interpret_formula_multi_compare():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2<3<4")
+    assert actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2<3>4")
+    assert not actual_val
+    assert remain == ""
+
+
+def test_interpret_formula_and():
+    interpreter = Interpreter()
+    stack = []
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3==2*3 かつ 4+5==4*5", stack)
+    print(stack)
+    assert not actual_val
+    assert remain == ""
+
+    stack = []
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3!=2*3 かつ 4+5==4*5")
+    assert not actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3!=2*3 かつ 4+5!=4*5")
+    assert actual_val
+    assert remain == ""
+
+def test_interpret_formula_or():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3==2*3 または 4+5==4*5")
+    assert not actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3!=2*3 または 4+5==4*5")
+    assert actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("2+3!=2*3 または 4+5!=4*5")
+    assert actual_val
+    assert remain == ""
+
+def test_interpret_formula_or_and():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("1+2!=1*2 または 2+3==2*3 かつ 4+5==4*5")
+    assert actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("1+2==1*2 または 2+3!=2*3 かつ 4+5!=4*5")
+    assert actual_val
+    assert remain == ""
+
+    actual_val, remain = interpreter.interpret_arithmetic_formula("1+2==1*2 または 2+3==2*3 かつ 4+5!=4*5")
+    assert not actual_val
+    assert remain == ""
+
+
+def test_process_var_assigns():
+    interpreter = Interpreter()
+    actual_list, remain = interpreter.process_var_assigns("a<-1+2+3, b, c<-5")
+
+    assert actual_list == ["a", "b", "c"]
+    assert interpreter.name_val_map["a"] == 6
+    assert interpreter.name_val_map["b"] is None
+    assert interpreter.name_val_map["c"] == 5
+    assert remain == ""
+
+
+def test_interpret_var_declare():
+    interpreter = Interpreter()
+    remain = interpreter.interpret_var_declare("整数型：a<-1, b, c<-1+2+3")
+    assert interpreter.name_val_map["a"] == 1
+    assert interpreter.name_val_map["b"] is None
+    assert interpreter.name_val_map["c"] == 6
+    assert interpreter.name_type_map["a"] == "整数型"
+    assert interpreter.name_type_map["b"] == "整数型"
+    assert interpreter.name_type_map["c"] == "整数型"
+    remain == ""
