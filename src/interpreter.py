@@ -6,10 +6,21 @@ from src import exception
 
 
 class Interpreter:
+    # <比較演算子>
+    COMPARE_OPERATOR = ">=|<=|==|!=|>|<"
+    # <ORビット演算式>
+    OR_OPERATOR = "\\|"
+    # <ANDビット演算子>
+    AND_OPERATOR = "\\&"
     # <和差演算子>
     ADD_SUB_OPERATOR = "(\\+|-)"
     # <乗除演算子>
-    MUL_DIV_OPERATOR = "(\\*|/)"
+    MUL_DIV_OPERATOR = "\\*|/"
+    # <論理演算子>
+    LOGICAL_OPERATOR = "かつ|または"
+
+    OPERATORS = f"{COMPARE_OPERATOR}|{OR_OPERATOR}|{AND_OPERATOR}|{ADD_SUB_OPERATOR}|{MUL_DIV_OPERATOR}|{LOGICAL_OPERATOR}"
+
 
     PALENTHESIS_START = "^\\("
     PALENTHESIS_END = "^\\)"
@@ -46,6 +57,54 @@ class Interpreter:
         f"{BOOL_TYPE}{ARR_SUFFIX}": List[bool],
     }
 
+    operator_func_map = {
+        "+": lambda val1, val2: val1 + val2,
+        "-": lambda val1, val2: val1 - val2,
+        "*": lambda val1, val2: val1 * val2,
+        "/": lambda val1, val2: val1 / val2,
+        "|": lambda val1, val2: val1 | val2,
+        "&": lambda val1, val2: val1 & val2,
+        ">": lambda val1, val2: val1 > val2,
+        "<": lambda val1, val2: val1 < val2,
+        ">=": lambda val1, val2: val1 >= val2,
+        "<=": lambda val1, val2: val1 <= val2,
+        "!=": lambda val1, val2: val1 != val2,
+        "==": lambda val1, val2: val1 == val2,
+        "かつ": lambda val1, val2: val1 and val2,
+        "または": lambda val1, val2: val1 or val2,
+    }
+    operator_priority_map = {
+        "+": ["*", "/"],
+        "-": ["*", "/"],
+        "*": [],
+        "/": [],
+        ">": ["+", "-", "*", "/"],
+        "<": ["+", "-", "*", "/"],
+        ">=": ["+", "-", "*", "/"],
+        "<=": ["+", "-", "*", "/"],
+        "==": ["+", "-", "*", "/"],
+        "!=": ["+", "-", "*", "/"],
+        "&": ["+", "-", "*", "/", ">", "<", ">=", "<=", "==", "!="],
+        "|": ["+", "-", "*", "/", "&", ">", "<", ">=", "<=", "==", "!="],
+        "かつ": ["+", "-", "*", "/", "&", "|", ">", "<", ">=", "<=", "==", "!="],
+        "または": [
+            "+",
+            "-",
+            "*",
+            "/",
+            "&",
+            "|",
+            ">",
+            "<",
+            ">=",
+            "<=",
+            "==",
+            "!=",
+            "かつ",
+        ],
+    }
+
+
     def __init__(self):
         self.name_val_map = {}
         self.name_type_map = {}
@@ -57,65 +116,53 @@ class Interpreter:
         self.operand_pattern = re.compile(self.OPERAND)
         self.add_sub_operator_pattern = re.compile(self.ADD_SUB_OPERATOR)
         self.mul_div_operator_pattern = re.compile(self.MUL_DIV_OPERATOR)
+        self.and_operator_pattern = re.compile(self.AND_OPERATOR)
+        self.or_operator_pattern = re.compile(self.OR_OPERATOR)
+        self.operators_pattern = re.compile(self.OPERATORS)
 
         self.parenthesis_start_pattern = re.compile(self.PALENTHESIS_START)
         self.parenthesis_end_pattern = re.compile(self.PALENTHESIS_END)
 
-    def interpret_arithmetic_formula(self, line: str, stack: List[str] = None):
+    def interpret_arithmetic_formula(
+        self, line: str, stack: List[str] = None, pended_op=None
+    ):
         result, remain = self.interpret_arithmetic_operand(line, stack)
-        res = self.get_pattern_and_remain(self.mul_div_operator_pattern, remain)
         while True:
-            res = self.process_mul_div(remain, stack, result)
+            res = self.process_operator(remain, stack, result, pended_op=pended_op)
             if not res:
                 break
             result, remain = res
-        res = self.get_pattern_and_remain(self.add_sub_operator_pattern, remain)
-        while True:
-            res = self.process_add_sub(remain, stack, result)
-            if not res:
-                break
-            result, remain = res
-        print(result, remain)
         return result, remain
 
-    def process_add_sub(self, remain: str, stack: List[str], val, exception=None):
-        res = self.get_pattern_and_remain(
-            self.add_sub_operator_pattern, remain, exception
-        )
+    def process_operator(
+        self,
+        remain: str,
+        stack: List[str],
+        val,
+        exception: exception.PatternException = None,
+        pended_op: str = None,
+    ):
+        res = self.get_pattern_and_remain(self.operators_pattern, remain, exception)
         if not res:
             return None
-        op, remain = res
+        op, tmp_remain = res
+        if pended_op is not None and pended_op in self.operator_priority_map[op]:
+            return None
+        else:
+            remain = tmp_remain
         val2, tmp_remain = self.interpret_arithmetic_operand(remain, stack)
-
-        # *または/の計算が続く場合は先に計算
-        if self.get_pattern_and_remain(self.mul_div_operator_pattern, tmp_remain):
-            val2, remain = self.interpret_arithmetic_formula(remain, stack)
+        # 優先度の高い演算子がある場合は先に計算
+        res = self.get_pattern_and_remain(self.operators_pattern, tmp_remain)
+        if res and res[0] in self.operator_priority_map[op]:
+            val2, remain = self.interpret_arithmetic_formula(
+                remain, stack, pended_op=op
+            )
         else:
             remain = tmp_remain
 
         if stack is not None:
             stack.append(op)
-        if op == "+":
-            result = val + val2
-        else:
-            result = val - val2
-        return result, remain
-
-    def process_mul_div(self, remain: str, stack: List[str], val, exception=None):
-        res = self.get_pattern_and_remain(
-            self.mul_div_operator_pattern, remain, exception
-        )
-        if not res:
-            return None
-        op, remain = res
-        val2, remain = self.interpret_arithmetic_operand(remain, stack)
-        if stack is not None:
-            stack.append(op)
-        if op == "*":
-            result = val * val2
-        else:
-            result = val / val2
-        return result, remain
+        return self.operator_func_map[op](val, val2), remain
 
     def interpret_arithmetic_operand(self, line: str, stack: List[str] = None):
         res = self.get_pattern_and_remain(self.parenthesis_start_pattern, line)
