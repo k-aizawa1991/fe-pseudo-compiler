@@ -28,7 +28,7 @@ def test_interpret_operand_num():
 
 def test_process_mul_div():
     interpreter = Interpreter()
-    actual_val, remain = interpreter.process_mul_div("*2*6/3", [], 1)
+    actual_val, remain = interpreter.process_operator("*2*6/3", [], 1)
     assert actual_val == 2
     assert remain == "*6/3"
 
@@ -36,7 +36,7 @@ def test_process_mul_div():
 def test_process_add_sub():
     interpreter = Interpreter()
 
-    actual_val, remain = interpreter.process_add_sub("+2+3-4", [], 1)
+    actual_val, remain = interpreter.process_operator("+2+3-4", [], 1)
     assert actual_val == 3
     assert remain == "+3-4"
 
