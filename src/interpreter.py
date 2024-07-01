@@ -60,6 +60,12 @@ class Interpreter:
         f"{BOOL_TYPE}{ARR_SUFFIX}": List[bool],
     }
 
+    TYPE = f"^({INT_TYPE}|{REAL_TYPE}|{STR_TYPE}|{BOOL_TYPE})({ARR_SUFFIX})?"
+
+    COLON = "^[:,：]"
+    COMMA = "^,"
+    ASSIGN = "^<-|←|＜－"
+
     operator_func_map = {
         "+": lambda val1, val2: val1 + val2,
         "＋": lambda val1, val2: val1 + val2,
@@ -133,6 +139,7 @@ class Interpreter:
         self.complie_patterns()
 
     def complie_patterns(self):
+        self.type_pattern = re.compile(self.TYPE)
         self.name_pattern = re.compile(self.NAME)
         self.num_val_pattern = re.compile(self.NUM_VAL)
         self.operand_pattern = re.compile(self.OPERAND)
@@ -146,6 +153,9 @@ class Interpreter:
 
         self.parenthesis_start_pattern = re.compile(self.PALENTHESIS_START)
         self.parenthesis_end_pattern = re.compile(self.PALENTHESIS_END)
+        self.colon_pattern = re.compile(self.COLON)
+        self.comma_pattern = re.compile(self.COMMA)
+        self.assign_pattern = re.compile(self.ASSIGN)
 
     def interpret_arithmetic_formula(
         self, line: str, stack: List[str] = None, pended_op=None
@@ -245,3 +255,39 @@ class Interpreter:
             else:
                 raise exception(target)
         return target[matched.start() : matched.end()], target[matched.end() :].strip()
+
+    def process_var_assigns(self, remain):
+        vars_list = []
+        while True:
+            name, remain = self.get_pattern_and_remain(
+                self.name_pattern, remain, exception.NamePatternException
+            )
+            vars_list.append(name)
+            res = self.get_pattern_and_remain(self.assign_pattern, remain)
+            if res:
+                _, remain = res
+                val, remain = self.interpret_arithmetic_formula(remain)
+                self.name_val_map[name] = val
+            else:
+                self.name_val_map[name] = None
+            res = self.get_pattern_and_remain(self.comma_pattern, remain)
+            if res:
+                _, remain = res
+                continue
+            else:
+                break
+        return vars_list, remain
+
+    def interpret_var_declare(self, line):
+        res = self.get_pattern_and_remain(self.type_pattern, line)
+        if not res:
+            return None
+        type_str, remain = res
+        _, remain = self.get_pattern_and_remain(
+            self.colon_pattern, remain, exception.DeclareException
+        )
+        vars, remain = self.process_var_assigns(remain)
+
+        for var in vars:
+            self.name_type_map[var] = type_str
+        return remain
