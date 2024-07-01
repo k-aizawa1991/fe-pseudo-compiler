@@ -240,3 +240,19 @@ def test_interpret_var_declare():
     assert interpreter.name_type_map["b"] == "整数型"
     assert interpreter.name_type_map["c"] == "整数型"
     remain == ""
+
+
+def test_process_var_assigns_and_use():
+    interpreter = Interpreter()
+    actual_list, remain = interpreter.process_var_assigns("a←1+2+3, b, c←5.4")
+
+    assert actual_list == ["a", "b", "c"]
+    assert interpreter.name_val_map["a"] == 6
+    assert interpreter.name_val_map["b"] is None
+    assert interpreter.name_val_map["c"] == 5.4
+    assert remain == ""
+
+    interpreter.process_var_assigns("b←a + c * 2")
+    assert interpreter.name_val_map["b"] == 16.8
+    actual_val, remain = interpreter.interpret_arithmetic_formula("a+b+c")
+    assert actual_val == 16.8 + 5.4 + 6
