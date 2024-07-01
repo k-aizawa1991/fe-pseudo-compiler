@@ -48,6 +48,20 @@ def test_interpret_arithmetic_formula():
     assert remain == ""
 
 
+def test_interpret_arithmetic_formula_not():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("not true", [])
+    assert not actual_val
+    assert remain == ""
+
+
+def test_interpret_arithmetic_formula_mod():
+    interpreter = Interpreter()
+    actual_val, remain = interpreter.interpret_arithmetic_formula("12 mod 5", [])
+    assert actual_val == 2
+    assert remain == ""
+
+
 def test_interpret_arithmetic_formula_double_mul_div():
     interpreter = Interpreter()
     actual_val, remain = interpreter.interpret_arithmetic_formula("1*2*3/4", [])
