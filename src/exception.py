@@ -13,6 +13,11 @@ class NameNotDefinedException(PatternException):
         return f"[{self.arg}]は変数として定義されていません。"
 
 
+class DeclareException(PatternException):
+    def __str__(self):
+        return f"宣言の記述が不正です：{self.arg}"
+
+
 class InvalidFormulaException(PatternException):
     def __str__(self):
         return f"式が不正です：{self.arg}"
