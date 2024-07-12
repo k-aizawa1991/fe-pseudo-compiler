@@ -261,6 +261,7 @@ class Interpreter:
     def get_pattern_and_remain(
         self, pattern: Pattern, target: str, exception: Exception = None
     ) -> Tuple[str, str]:
+        target = target.strip()
         matched = pattern.match(target)
         if not matched:
             if exception is None:
