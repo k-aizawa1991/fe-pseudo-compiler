@@ -1,28 +1,62 @@
 class PatternException(Exception):
+    message = ""
+
+    def __init__(self, arg="", line_num=None):
+        self.arg = arg
+        self.line_num = line_num
+
+    def __str__(self):
+        line = f"{self.line_num+1}行目:" if self.line_num is not None else ""
+        return f"{line}{self.message}"
+
+
+class NamePatternException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"[{self.arg}]は名前に利用できません。各種名前は英字で開始し、英数字のみが利用できます。"
+
+
+class NameNotDefinedException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"[{self.arg}]は変数として定義されていません。"
+
+
+class DeclareException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"宣言の記述が不正です：{self.arg}"
+
+
+class InvalidFormulaException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"式が不正です：{self.arg}"
+
+
+class InvalidParenthesisException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f'"("に対応する")"が存在しません。:{self.args}'
+
+
+class InvalidIfBlockException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "if文が正しく終了しませんでした。"
+
+
+class InvalidIndentException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "インデントに誤りがあります。"
+
+
+class LtsException(Exception):
     def __init__(self, arg=""):
         self.arg = arg
 
 
-class NamePatternException(PatternException):
+class DoesNotExistException(LtsException):
     def __str__(self):
-        return f"[{self.arg}]は名前に利用できません。各種名前は英字で開始し、英数字のみが利用できます。"
-
-
-class NameNotDefinedException(PatternException):
-    def __str__(self):
-        return f"[{self.arg}]は変数として定義されていません。"
-
-
-class DeclareException(PatternException):
-    def __str__(self):
-        return f"宣言の記述が不正です：{self.arg}"
-
-
-class InvalidFormulaException(PatternException):
-    def __str__(self):
-        return f"式が不正です：{self.arg}"
-
-
-class InvalidParenthesisException(PatternException):
-    def __str__(self):
-        return f'"("に対応する")"が存在しません。:{self.args}'
+        return f"{self.args}はLTSに存在しません。"

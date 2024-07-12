@@ -1,8 +1,9 @@
-from re import Pattern
 import re
-
+from re import Pattern
 from typing import List, Tuple
+
 from src import exception
+from src.lts.lts import LabeledTransitionSystem
 
 
 class Interpreter:
@@ -61,12 +62,19 @@ class Interpreter:
     }
 
     TYPE = f"^({INT_TYPE}|{REAL_TYPE}|{STR_TYPE}|{BOOL_TYPE})({ARR_SUFFIX})?"
+    # <IF句>
+    IF = "^if"
+    ELSE = "^else"
+    ELSEIF = "^elseif"
+    ENDIF = "^endif$"
 
     COLON = "^[:,：]"
     COMMA = "^,"
     ASSIGN = "^<-|←|＜－"
 
-    operator_func_map = {
+    LOGICAL_VAL_MAP = {"true": True, "false": False}
+
+    OPERATOR_FUNC_MAP = {
         "+": lambda val1, val2: val1 + val2,
         "＋": lambda val1, val2: val1 + val2,
         "-": lambda val1, val2: val1 - val2,
@@ -90,7 +98,7 @@ class Interpreter:
         "かつ": lambda val1, val2: val1 and val2,
         "または": lambda val1, val2: val1 or val2,
     }
-    single_operator_func_map = {
+    SINGLE_OPERATOR_FUNC_MAP = {
         "not": lambda val: not val,
         "+": lambda val: +val,
         "＋": lambda val: +val,
@@ -131,15 +139,20 @@ class Interpreter:
         "かつ": OP_LV1 + OP_LV2 + OP_LV3 + OP_LV4 + OP_LV5 + OP_LV6,
         "または": OP_LV1 + OP_LV2 + OP_LV3 + OP_LV4 + OP_LV5 + OP_LV6 + OP_LV7,
     }
-    logical_val_map = {"true": True, "false": False}
 
     def __init__(self):
         self.name_val_map = {}
         self.name_type_map = {}
+        self.lts = LabeledTransitionSystem()
+        self.current_state = self.lts.get_init_state()
         self.complie_patterns()
 
     def complie_patterns(self):
         self.type_pattern = re.compile(self.TYPE)
+        self.if_pattern = re.compile(self.IF)
+        self.else_pattern = re.compile(self.ELSE)
+        self.elseif_pattern = re.compile(self.ELSEIF)
+        self.endif_pattern = re.compile(self.ENDIF)
         self.name_pattern = re.compile(self.NAME)
         self.num_val_pattern = re.compile(self.NUM_VAL)
         self.operand_pattern = re.compile(self.OPERAND)
@@ -196,7 +209,7 @@ class Interpreter:
 
         if stack is not None:
             stack.append(op)
-        return self.operator_func_map[op](val, val2), remain
+        return self.OPERATOR_FUNC_MAP[op](val, val2), remain
 
     def interpret_arithmetic_operand(self, line: str, stack: List[str] = None):
         res = self.get_pattern_and_remain(self.parenthesis_start_pattern, line)
@@ -220,9 +233,9 @@ class Interpreter:
         res = self.get_pattern_and_remain(self.logical_value_pattern, line)
         if res:
             val, remain = res
-            val = self.logical_val_map[val]
+            val = self.LOGICAL_VAL_MAP[val]
             if single_op is not None:
-                val = self.single_operator_func_map[single_op](val)
+                val = self.SINGLE_OPERATOR_FUNC_MAP[single_op](val)
             return val, remain
         res = self.get_pattern_and_remain(self.name_pattern, line)
         if res:
@@ -242,12 +255,13 @@ class Interpreter:
         except ValueError:
             val = float(num_val)
         if single_op is not None:
-            val = self.single_operator_func_map[single_op](val)
+            val = self.SINGLE_OPERATOR_FUNC_MAP[single_op](val)
         return val, remain
 
     def get_pattern_and_remain(
         self, pattern: Pattern, target: str, exception: Exception = None
     ) -> Tuple[str, str]:
+        target = target.strip()
         matched = pattern.match(target)
         if not matched:
             if exception is None:
@@ -291,3 +305,104 @@ class Interpreter:
         for var in vars:
             self.name_type_map[var] = type_str
         return remain
+
+    def interpret_if_block(self, lines: List[str], indent: str = "", line_pointa=0):
+        if len(lines) == 0 or (
+            indent != "" and not self.check_indent(lines[line_pointa], indent)
+        ):
+            return line_pointa
+        res = self.get_pattern_and_remain(self.if_pattern, lines[line_pointa])
+        end_states = []
+        if not res:
+            return line_pointa
+        _, remain = res
+        child_indent = self.extract_indent(lines[line_pointa + 1])
+        if len(indent) >= len(child_indent):
+            raise exception.InvalidIndentException(line_num=line_pointa + 1)
+        start_state = self.current_state
+        state = self.lts.create_state()
+        self.lts.add_transition(start_state, remain, state)
+        self.current_state = state
+        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+        end_states.append(self.current_state)
+        while True:
+            if len(lines) == 0:
+                break
+            res = self.get_pattern_and_remain(self.elseif_pattern, lines[line_pointa])
+            if not res:
+                break
+            _, remain = res
+            child_indent = self.extract_indent(lines[line_pointa + 1])
+            if len(indent) >= len(child_indent):
+                raise exception.InvalidIndentException(line_num=line_pointa + 1)
+            state = self.lts.create_state()
+            self.lts.add_transition(start_state, remain, state)
+            self.current_state = state
+            line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+            end_states.append(self.current_state)
+        if len(lines) <= line_pointa:
+            raise exception.InvalidFormulaException()
+        res = self.get_pattern_and_remain(self.else_pattern, lines[line_pointa])
+        if res:
+            child_indent = self.extract_indent(lines[line_pointa + 1])
+            if len(indent) >= len(child_indent):
+                raise exception.InvalidIndentException(line_num=line_pointa + 1)
+            state = self.lts.create_state()
+            self.lts.add_transition(start_state, "else", state)
+            self.current_state = state
+            line_pointa = self.interpret_process(
+                lines, child_indent, line_pointa=line_pointa + 1
+            )
+            end_states.append(self.current_state)
+        else:
+            state = self.lts.create_state()
+            self.lts.add_transition(start_state, "else", state)
+            self.current_state = state
+            end_states.append(self.current_state)
+
+        if len(lines) <= line_pointa:
+            raise exception.InvalidFormulaException()
+        res = self.get_pattern_and_remain(self.endif_pattern, lines[line_pointa])
+        if not res:
+            raise exception.InvalidIfBlockException(line_num=line_pointa)
+        line_pointa += 1
+        endif_state = self.lts.create_state()
+        for end_state in end_states:
+            self.lts.add_transition(end_state, "endif", endif_state)
+        self.current_state = endif_state
+
+        return line_pointa
+
+    def interpret_process(self, lines: List[str], indent: str = "", line_pointa=0):
+        while lines is not None and len(lines) != 0:
+            print(line_pointa, "行目", lines[line_pointa])
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            line_pointa = self.interpret_if_block(
+                lines, indent=indent, line_pointa=line_pointa
+            )
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            if self.interpret_var_declare(
+                lines[line_pointa]
+            ) or self.interpret_arithmetic_formula(lines[line_pointa]):
+                state = self.lts.create_state()
+                self.lts.add_transition(
+                    self.current_state, lines[line_pointa].strip(), state
+                )
+                self.current_state = state
+                line_pointa += 1
+        return line_pointa
+
+    def check_indent(self, line: str, indent: str):
+        return line.startswith(indent)
+
+    def extract_indent(self, line: str):
+        count = 0
+        indent = ""
+        while True:
+            if line[count] == " ":
+                indent += " "
+                count += 1
+            else:
+                return indent
