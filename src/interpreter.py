@@ -354,6 +354,12 @@ class Interpreter:
                 lines, child_indent, line_pointa=line_pointa + 1
             )
             end_states.append(self.current_state)
+        else:
+            state = self.lts.create_state()
+            self.lts.add_transition(start_state, "else", state)
+            self.current_state = state
+            end_states.append(self.current_state)
+
         if len(lines) <= line_pointa:
             raise exception.InvalidFormulaException()
         res = self.get_pattern_and_remain(self.endif_pattern, lines[line_pointa])
