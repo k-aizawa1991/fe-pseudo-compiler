@@ -1,5 +1,6 @@
+import pytest
 from src.interpreter import Interpreter
-
+from src import exception
 
 def test_get_real_num_pattern():
     interpreter = Interpreter()
@@ -288,4 +289,94 @@ def test_interpret_if_block():
     assert interpreter.lts.get_transition_state("S8", "整数型:b=8") == "S9"
     assert interpreter.lts.get_transition_state("S9", "endif") == "S10"
 
-    assert len(remains) == 1
+    assert remains == 10
+
+def test_interpret_if_block_without_any_else():
+    interpreter = Interpreter()
+    lines = [
+        "if(1>3)",
+        "    整数型:a=1+2",
+        "    整数型:b=2+3",
+        "endif",
+        "c=a+b",
+    ]
+    remains = interpreter.interpret_if_block(lines)
+    assert len(interpreter.lts.transitions) == 5
+    assert interpreter.lts.get_transition_state("S0", "(1>3)") == "S1"
+    assert interpreter.lts.get_transition_state("S1", "整数型:a=1+2") == "S2"
+    assert interpreter.lts.get_transition_state("S2", "整数型:b=2+3") == "S3"
+    assert interpreter.lts.get_transition_state("S3", "endif") == "S4"
+
+    assert remains == 4
+
+def test_interpret_if_block_without_elseif():
+    interpreter = Interpreter()
+    lines = [
+        "if(1>3)",
+        "    整数型:a=1+2",
+        "    整数型:b=2+3",
+        "else",
+        "    整数型:a=7",
+        "    整数型:b=8",
+        "endif",
+        "c=a+b",
+    ]
+    remains = interpreter.interpret_if_block(lines)
+    assert len(interpreter.lts.transitions) == 8
+    assert interpreter.lts.get_transition_state("S0", "(1>3)") == "S1"
+    assert interpreter.lts.get_transition_state("S1", "整数型:a=1+2") == "S2"
+    assert interpreter.lts.get_transition_state("S2", "整数型:b=2+3") == "S3"
+    assert interpreter.lts.get_transition_state("S3", "endif") == "S7"
+    assert interpreter.lts.get_transition_state("S0", "else") == "S4"
+    assert interpreter.lts.get_transition_state("S4", "整数型:a=7") == "S5"
+    assert interpreter.lts.get_transition_state("S5", "整数型:b=8") == "S6"
+    assert interpreter.lts.get_transition_state("S6", "endif") == "S7"
+
+    assert remains == 7
+
+
+def test_interpret_if_block_without_else():
+    interpreter = Interpreter()
+    lines = [
+        "if(1>3)",
+        "    整数型:a=1+2",
+        "    整数型:b=2+3",
+        "elseif(4<2)",
+        "    整数型:a=4",
+        "    整数型:b=5+1",
+        "endif",
+        "c=a+b",
+    ]
+    remains = interpreter.interpret_if_block(lines)
+    assert len(interpreter.lts.transitions) == 8
+    assert interpreter.lts.get_transition_state("S0", "(1>3)") == "S1"
+    assert interpreter.lts.get_transition_state("S1", "整数型:a=1+2") == "S2"
+    assert interpreter.lts.get_transition_state("S2", "整数型:b=2+3") == "S3"
+    assert interpreter.lts.get_transition_state("S3", "endif") == "S7"
+    assert interpreter.lts.get_transition_state("S0", "(4<2)") == "S4"
+    assert interpreter.lts.get_transition_state("S4", "整数型:a=4") == "S5"
+    assert interpreter.lts.get_transition_state("S5", "整数型:b=5+1") == "S6"
+    assert interpreter.lts.get_transition_state("S6", "endif") == "S7"
+
+    assert remains == 7
+
+
+def test_interpret_if_block_invalid_indent():
+    interpreter = Interpreter()
+    lines = [
+        "if(1>3)",
+        "    整数型:a=1+2",
+        "  整数型:b=2+3",
+        "elseif(4<2)",
+        "    整数型:a=4",
+        "    整数型:b=5+1",
+        "endif",
+        "c=a+b",
+    ]
+    with pytest.raises(exception.InvalidIfBlockException) as e:
+        interpreter.interpret_if_block(lines)
+
+        
+    # エラーメッセージを検証
+    assert str(e.value) == "3行目:if文が正しく終了しませんでした。"
+    
