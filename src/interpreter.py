@@ -320,7 +320,7 @@ class Interpreter:
             raise exception.InvalidIndentException()
         start_state = self.current_state
         state = self.lts.create_state()
-        self.lts.add_transition(start_state, lines[0].strip(), state)
+        self.lts.add_transition(start_state, remain, state)
         self.current_state = state
         lines = self.interpret_process(lines[1:], child_indent)
         end_states.append(self.current_state)
@@ -335,7 +335,7 @@ class Interpreter:
             if len(indent) >= len(child_indent):
                 raise exception.InvalidIndentException()
             state = self.lts.create_state()
-            self.lts.add_transition(start_state, lines[0].strip(), state)
+            self.lts.add_transition(start_state, remain, state)
             self.current_state = state
             lines = self.interpret_process(lines[1:], child_indent)
             end_states.append(self.current_state)
