@@ -71,7 +71,9 @@ class Interpreter:
     COMMA = "^,"
     ASSIGN = "^<-|←|＜－"
 
-    operator_func_map = {
+    LOGICAL_VAL_MAP = {"true": True, "false": False}
+
+    OPERATOR_FUNC_MAP = {
         "+": lambda val1, val2: val1 + val2,
         "＋": lambda val1, val2: val1 + val2,
         "-": lambda val1, val2: val1 - val2,
@@ -95,7 +97,7 @@ class Interpreter:
         "かつ": lambda val1, val2: val1 and val2,
         "または": lambda val1, val2: val1 or val2,
     }
-    single_operator_func_map = {
+    SINGLE_OPERATOR_FUNC_MAP = {
         "not": lambda val: not val,
         "+": lambda val: +val,
         "＋": lambda val: +val,
@@ -136,7 +138,6 @@ class Interpreter:
         "かつ": OP_LV1 + OP_LV2 + OP_LV3 + OP_LV4 + OP_LV5 + OP_LV6,
         "または": OP_LV1 + OP_LV2 + OP_LV3 + OP_LV4 + OP_LV5 + OP_LV6 + OP_LV7,
     }
-    logical_val_map = {"true": True, "false": False}
 
     def __init__(self):
         self.name_val_map = {}
@@ -205,7 +206,7 @@ class Interpreter:
 
         if stack is not None:
             stack.append(op)
-        return self.operator_func_map[op](val, val2), remain
+        return self.OPERATOR_FUNC_MAP[op](val, val2), remain
 
     def interpret_arithmetic_operand(self, line: str, stack: List[str] = None):
         res = self.get_pattern_and_remain(self.parenthesis_start_pattern, line)
@@ -229,9 +230,9 @@ class Interpreter:
         res = self.get_pattern_and_remain(self.logical_value_pattern, line)
         if res:
             val, remain = res
-            val = self.logical_val_map[val]
+            val = self.LOGICAL_VAL_MAP[val]
             if single_op is not None:
-                val = self.single_operator_func_map[single_op](val)
+                val = self.SINGLE_OPERATOR_FUNC_MAP[single_op](val)
             return val, remain
         res = self.get_pattern_and_remain(self.name_pattern, line)
         if res:
@@ -251,7 +252,7 @@ class Interpreter:
         except ValueError:
             val = float(num_val)
         if single_op is not None:
-            val = self.single_operator_func_map[single_op](val)
+            val = self.SINGLE_OPERATOR_FUNC_MAP[single_op](val)
         return val, remain
 
     def get_pattern_and_remain(
