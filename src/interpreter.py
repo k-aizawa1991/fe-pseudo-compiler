@@ -3,6 +3,7 @@ import re
 
 from typing import List, Tuple
 from src import exception
+from src.lts.lts import LabeledTransitionSystem
 
 
 class Interpreter:
@@ -142,6 +143,8 @@ class Interpreter:
     def __init__(self):
         self.name_val_map = {}
         self.name_type_map = {}
+        self.lts = LabeledTransitionSystem()
+        self.current_state = self.lts.get_init_state()
         self.complie_patterns()
 
     def complie_patterns(self):

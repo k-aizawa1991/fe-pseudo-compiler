@@ -26,3 +26,12 @@ class InvalidFormulaException(PatternException):
 class InvalidParenthesisException(PatternException):
     def __str__(self):
         return f'"("に対応する")"が存在しません。:{self.args}'
+
+class LtsException(Exception):
+    def __init__(self, arg=""):
+        self.arg = arg
+
+
+class DoesNotExistException(LtsException):
+    def __str__(self):
+        return f"{self.args}はLTSに存在しません。"
