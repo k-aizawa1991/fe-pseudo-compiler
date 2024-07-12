@@ -61,6 +61,11 @@ class Interpreter:
     }
 
     TYPE = f"^({INT_TYPE}|{REAL_TYPE}|{STR_TYPE}|{BOOL_TYPE})({ARR_SUFFIX})?"
+    # <IF句>
+    IF = "^if"
+    ELSE = "^else"
+    ELSEIF = "^elseif"
+    ENDIF = "^endif$"
 
     COLON = "^[:,：]"
     COMMA = "^,"
@@ -140,6 +145,10 @@ class Interpreter:
 
     def complie_patterns(self):
         self.type_pattern = re.compile(self.TYPE)
+        self.if_pattern = re.compile(self.IF)
+        self.else_pattern = re.compile(self.ELSE)
+        self.elseif_pattern = re.compile(self.ELSEIF)
+        self.endif_pattern = re.compile(self.ENDIF)
         self.name_pattern = re.compile(self.NAME)
         self.num_val_pattern = re.compile(self.NUM_VAL)
         self.operand_pattern = re.compile(self.OPERAND)
