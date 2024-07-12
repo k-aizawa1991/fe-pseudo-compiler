@@ -1,7 +1,7 @@
-from re import Pattern
 import re
-
+from re import Pattern
 from typing import List, Tuple
+
 from src import exception
 from src.lts.lts import LabeledTransitionSystem
 
@@ -308,7 +308,7 @@ class Interpreter:
     def interpret_if_block(self, lines: List[str], indent: str = ""):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[0], indent)
-        ) :
+        ):
             return lines
         res = self.get_pattern_and_remain(self.if_pattern, lines[0])
         end_states = []
