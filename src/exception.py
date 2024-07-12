@@ -27,6 +27,17 @@ class InvalidParenthesisException(PatternException):
     def __str__(self):
         return f'"("に対応する")"が存在しません。:{self.args}'
 
+
+class InvalidIfBlockException(PatternException):
+    def __str__(self):
+        return "if文が正しく終了しませんでした。"
+
+
+class InvalidIndentException(PatternException):
+    def __str__(self):
+        return "インデントに誤りがあります。"
+
+
 class LtsException(Exception):
     def __init__(self, arg=""):
         self.arg = arg
