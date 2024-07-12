@@ -381,6 +381,8 @@ class Interpreter:
             line_pointa = self.interpret_if_block(
                 lines, indent=indent, line_pointa=line_pointa
             )
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
             if self.interpret_var_declare(
                 lines[line_pointa]
             ) or self.interpret_arithmetic_formula(lines[line_pointa]):
