@@ -335,14 +335,10 @@ class Interpreter:
         if not res:
             return line_pointa
         _, remain = res
-        child_indent = self.extract_indent(lines[line_pointa + 1])
-        if len(indent) >= len(child_indent):
-            raise exception.InvalidIndentException(line_num=line_pointa + 1)
-        start_state = self.current_state
-        state = self.lts.create_state()
-        self.lts.add_transition(start_state, remain, state)
-        self.current_state = state
-        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+        line_pointa, start_state = self.process_nested_process(
+            lines, line_pointa, remain, indent
+        )
+
         end_states.append(self.current_state)
         while True:
             if len(lines) == 0:
@@ -356,13 +352,9 @@ class Interpreter:
             if not res:
                 break
             _, remain = res
-            child_indent = self.extract_indent(lines[line_pointa + 1])
-            if len(indent) >= len(child_indent):
-                raise exception.InvalidIndentException(line_num=line_pointa + 1)
-            state = self.lts.create_state()
-            self.lts.add_transition(start_state, remain, state)
-            self.current_state = state
-            line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+            line_pointa, _ = self.process_nested_process(
+                lines, line_pointa, remain, indent, start_state
+            )
             end_states.append(self.current_state)
         if len(lines) <= line_pointa:
             raise exception.InvalidFormulaException()
@@ -370,14 +362,8 @@ class Interpreter:
             self.else_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
         )
         if res:
-            child_indent = self.extract_indent(lines[line_pointa + 1])
-            if len(indent) >= len(child_indent):
-                raise exception.InvalidIndentException(line_num=line_pointa + 1)
-            state = self.lts.create_state()
-            self.lts.add_transition(start_state, "else", state)
-            self.current_state = state
-            line_pointa = self.interpret_process(
-                lines, child_indent, line_pointa=line_pointa + 1
+            line_pointa, _ = self.process_nested_process(
+                lines, line_pointa, "else", indent, start_state
             )
             end_states.append(self.current_state)
         else:
@@ -400,6 +386,27 @@ class Interpreter:
         self.current_state = endif_state
 
         return line_pointa
+
+    def process_nested_process(
+        self,
+        lines: List[str],
+        line_pointa: int,
+        in_label: str,
+        indent: str = "",
+        start_state: str | None = None,
+    ):
+        child_indent = self.extract_indent(lines[line_pointa + 1])
+        if len(indent) >= len(child_indent):
+            raise exception.InvalidIndentException(line_num=line_pointa + 1)
+        if start_state is None:
+            start_state = self.current_state
+        state = self.lts.create_state()
+        self.lts.add_transition(start_state, in_label, state)
+        self.current_state = state
+        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+        if not self.check_indent(lines[line_pointa], indent):
+            raise exception.InvalidIndentException(line_num=line_pointa)
+        return line_pointa, start_state
 
     def interpret_process(self, lines: List[str], indent: str = "", line_pointa=0):
         while lines is not None and len(lines) != 0:
