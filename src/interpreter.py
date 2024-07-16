@@ -429,6 +429,8 @@ class Interpreter:
         return line_pointa
 
     def check_indent(self, line: str, indent: str):
+        if indent == "":
+            return not line.startswith(" ")
         return line.startswith(indent)
 
     def extract_indent(self, line: str):
