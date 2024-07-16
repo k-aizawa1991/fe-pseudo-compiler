@@ -68,6 +68,11 @@ class Interpreter:
     ELSEIF = "^elseif"
     ENDIF = "^endif$"
 
+    # <WHILE句>
+    WHILE = "^while"
+    ENDWHILE = "^endwhile$"
+    DO = "^do"
+
     COLON = "^[:,：]"
     COMMA = "^,"
     ASSIGN = "^<-|←|＜－"
@@ -149,6 +154,9 @@ class Interpreter:
 
     def complie_patterns(self):
         self.type_pattern = re.compile(self.TYPE)
+        self.while_pattern = re.compile(self.WHILE)
+        self.endwhile_pattern = re.compile(self.ENDWHILE)
+        self.do_pattern = re.compile(self.DO)
         self.if_pattern = re.compile(self.IF)
         self.else_pattern = re.compile(self.ELSE)
         self.elseif_pattern = re.compile(self.ELSEIF)
@@ -259,32 +267,42 @@ class Interpreter:
         return val, remain
 
     def get_pattern_and_remain(
-        self, pattern: Pattern, target: str, exception: Exception = None
+        self, pattern: Pattern, target: str, e: Exception = None, indent="", line_num=0
     ) -> Tuple[str, str]:
+        if indent != "" and not self.check_indent(target, indent):
+            raise exception.InvalidIndentException(line_num=line_num)
         target = target.strip()
         matched = pattern.match(target)
         if not matched:
-            if exception is None:
+            if e is None:
                 return None
             else:
-                raise exception(target)
+                raise e(target)
         return target[matched.start() : matched.end()], target[matched.end() :].strip()
 
-    def process_var_assigns(self, remain):
+    def process_var_assigns(self, remain, indent="", line_num=0):
         vars_list = []
         while True:
             name, remain = self.get_pattern_and_remain(
-                self.name_pattern, remain, exception.NamePatternException
+                self.name_pattern,
+                remain,
+                exception.NamePatternException,
+                indent=indent,
+                line_num=line_num,
             )
             vars_list.append(name)
-            res = self.get_pattern_and_remain(self.assign_pattern, remain)
+            res = self.get_pattern_and_remain(
+                self.assign_pattern, remain, indent=indent, line_num=line_num
+            )
             if res:
                 _, remain = res
                 val, remain = self.interpret_arithmetic_formula(remain)
                 self.name_val_map[name] = val
             else:
                 self.name_val_map[name] = None
-            res = self.get_pattern_and_remain(self.comma_pattern, remain)
+            res = self.get_pattern_and_remain(
+                self.comma_pattern, remain, indent=indent, line_num=line_num
+            )
             if res:
                 _, remain = res
                 continue
@@ -292,13 +310,20 @@ class Interpreter:
                 break
         return vars_list, remain
 
-    def interpret_var_declare(self, line):
-        res = self.get_pattern_and_remain(self.type_pattern, line)
+    def interpret_var_declare(self, line, indent="", line_num=0):
+        res = self.get_pattern_and_remain(
+            self.type_pattern,
+            line,
+            indent=indent,
+            line_num=line_num,
+        )
         if not res:
             return None
         type_str, remain = res
         _, remain = self.get_pattern_and_remain(
-            self.colon_pattern, remain, exception.DeclareException
+            self.colon_pattern,
+            remain,
+            exception.DeclareException,
         )
         vars, remain = self.process_var_assigns(remain)
 
@@ -311,47 +336,42 @@ class Interpreter:
             indent != "" and not self.check_indent(lines[line_pointa], indent)
         ):
             return line_pointa
-        res = self.get_pattern_and_remain(self.if_pattern, lines[line_pointa])
+        res = self.get_pattern_and_remain(
+            self.if_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
         end_states = []
         if not res:
             return line_pointa
         _, remain = res
-        child_indent = self.extract_indent(lines[line_pointa + 1])
-        if len(indent) >= len(child_indent):
-            raise exception.InvalidIndentException(line_num=line_pointa + 1)
-        start_state = self.current_state
-        state = self.lts.create_state()
-        self.lts.add_transition(start_state, remain, state)
-        self.current_state = state
-        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+        line_pointa, start_state = self.process_nested_process(
+            lines, line_pointa, remain, indent
+        )
+
         end_states.append(self.current_state)
         while True:
             if len(lines) == 0:
                 break
-            res = self.get_pattern_and_remain(self.elseif_pattern, lines[line_pointa])
+            res = self.get_pattern_and_remain(
+                self.elseif_pattern,
+                lines[line_pointa],
+                indent=indent,
+                line_num=line_pointa,
+            )
             if not res:
                 break
             _, remain = res
-            child_indent = self.extract_indent(lines[line_pointa + 1])
-            if len(indent) >= len(child_indent):
-                raise exception.InvalidIndentException(line_num=line_pointa + 1)
-            state = self.lts.create_state()
-            self.lts.add_transition(start_state, remain, state)
-            self.current_state = state
-            line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+            line_pointa, _ = self.process_nested_process(
+                lines, line_pointa, remain, indent, start_state
+            )
             end_states.append(self.current_state)
         if len(lines) <= line_pointa:
             raise exception.InvalidFormulaException()
-        res = self.get_pattern_and_remain(self.else_pattern, lines[line_pointa])
+        res = self.get_pattern_and_remain(
+            self.else_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
         if res:
-            child_indent = self.extract_indent(lines[line_pointa + 1])
-            if len(indent) >= len(child_indent):
-                raise exception.InvalidIndentException(line_num=line_pointa + 1)
-            state = self.lts.create_state()
-            self.lts.add_transition(start_state, "else", state)
-            self.current_state = state
-            line_pointa = self.interpret_process(
-                lines, child_indent, line_pointa=line_pointa + 1
+            line_pointa, _ = self.process_nested_process(
+                lines, line_pointa, "else", indent, start_state
             )
             end_states.append(self.current_state)
         else:
@@ -362,7 +382,9 @@ class Interpreter:
 
         if len(lines) <= line_pointa:
             raise exception.InvalidFormulaException()
-        res = self.get_pattern_and_remain(self.endif_pattern, lines[line_pointa])
+        res = self.get_pattern_and_remain(
+            self.endif_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
         if not res:
             raise exception.InvalidIfBlockException(line_num=line_pointa)
         line_pointa += 1
@@ -373,9 +395,96 @@ class Interpreter:
 
         return line_pointa
 
+    def interpret_while_block(self, lines: List[str], indent: str = "", line_pointa=0):
+        if len(lines) == 0 or (
+            indent != "" and not self.check_indent(lines[line_pointa], indent)
+        ):
+            return line_pointa
+
+        res = self.get_pattern_and_remain(
+            self.while_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
+        if not res:
+            return line_pointa
+        _, remain = res
+        line_pointa, start_state = self.process_nested_process(
+            lines, line_pointa, remain, indent
+        )
+        res = self.get_pattern_and_remain(
+            self.endwhile_pattern,
+            lines[line_pointa],
+            indent=indent,
+            line_num=line_pointa,
+        )
+        if not res:
+            raise exception.InvalidWhileBlockException(line_num=line_pointa)
+        line_pointa += 1
+        self.lts.add_transition(self.current_state, "", start_state)
+        endwhile_state = self.lts.create_state()
+        self.lts.add_transition(start_state, "endwhile", endwhile_state)
+
+        self.current_state = endwhile_state
+
+        return line_pointa
+
+    def interpret_do_while_block(
+        self, lines: List[str], indent: str = "", line_pointa=0
+    ):
+        if len(lines) == 0 or (
+            indent != "" and not self.check_indent(lines[line_pointa], indent)
+        ):
+            return line_pointa
+
+        res = self.get_pattern_and_remain(
+            self.do_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
+        if not res:
+            return line_pointa
+        _, _ = res
+        line_pointa, start_state = self.process_nested_process(
+            lines, line_pointa, "do", indent
+        )
+        res = self.get_pattern_and_remain(
+            self.while_pattern,
+            lines[line_pointa],
+            indent=indent,
+            line_num=line_pointa,
+        )
+        if not res:
+            raise exception.InvalidDoWhileBlockException(line_num=line_pointa)
+        line_pointa += 1
+        _, remain = res
+        self.lts.add_transition(self.current_state, remain, start_state)
+        endwhile_state = self.lts.create_state()
+        self.lts.add_transition(self.current_state, "else", endwhile_state)
+
+        self.current_state = endwhile_state
+
+        return line_pointa
+
+    def process_nested_process(
+        self,
+        lines: List[str],
+        line_pointa: int,
+        in_label: str,
+        indent: str = "",
+        start_state: str | None = None,
+    ):
+        child_indent = self.extract_indent(lines[line_pointa + 1])
+        if len(indent) >= len(child_indent):
+            raise exception.InvalidIndentException(line_num=line_pointa + 1)
+        if start_state is None:
+            start_state = self.current_state
+        state = self.lts.create_state()
+        self.lts.add_transition(start_state, in_label, state)
+        self.current_state = state
+        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+        if not self.check_indent(lines[line_pointa], indent):
+            raise exception.InvalidIndentException(line_num=line_pointa)
+        return line_pointa, start_state
+
     def interpret_process(self, lines: List[str], indent: str = "", line_pointa=0):
         while lines is not None and len(lines) != 0:
-            print(line_pointa, "行目", lines[line_pointa])
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
             line_pointa = self.interpret_if_block(
@@ -383,9 +492,26 @@ class Interpreter:
             )
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
-            if self.interpret_var_declare(
-                lines[line_pointa]
-            ) or self.interpret_arithmetic_formula(lines[line_pointa]):
+            line_pointa = self.interpret_while_block(
+                lines, indent=indent, line_pointa=line_pointa
+            )
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            line_pointa = self.interpret_do_while_block(
+                lines, indent=indent, line_pointa=line_pointa
+            )
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            if (
+                self.interpret_var_declare(
+                    lines[line_pointa], indent=indent, line_num=line_pointa
+                )
+                is not None
+                or self.interpret_arithmetic_formula(
+                    lines[line_pointa], indent=indent, line_num=line_pointa
+                )
+                is not None
+            ):
                 state = self.lts.create_state()
                 self.lts.add_transition(
                     self.current_state, lines[line_pointa].strip(), state
@@ -395,6 +521,8 @@ class Interpreter:
         return line_pointa
 
     def check_indent(self, line: str, indent: str):
+        if indent == "":
+            return not line.startswith(" ")
         return line.startswith(indent)
 
     def extract_indent(self, line: str):

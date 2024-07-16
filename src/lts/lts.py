@@ -10,7 +10,7 @@ class LabeledTransitionSystem:
         init_state = init_state_name
         self.labels: Set[str] = set()
         self.transitions: Dict[str, Dict[str, str]] = {init_state: {}}
-        self.backwards: Dict[str, Set[Tuple[str, str]]] = {}
+        self.backwards: Dict[str, Set[Tuple[str, str]]] = {init_state: set()}
         self.init_state = init_state
 
     def get_init_state(self):
