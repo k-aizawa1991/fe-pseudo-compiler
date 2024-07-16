@@ -46,6 +46,17 @@ class InvalidIfBlockException(PatternException):
         self.message = "if文が正しく終了しませんでした。"
 
 
+class InvalidWhileBlockException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "while文が正しく終了しませんでした。"
+
+
+class InvalidDoWhileBlockException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "do while文が正しく終了しませんでした。"
+
 class InvalidIndentException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)

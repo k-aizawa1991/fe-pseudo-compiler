@@ -68,6 +68,11 @@ class Interpreter:
     ELSEIF = "^elseif"
     ENDIF = "^endif$"
 
+    # <WHILE句>
+    WHILE = "^while"
+    ENDWHILE = "^endwhile$"
+    DO = "^do"
+
     COLON = "^[:,：]"
     COMMA = "^,"
     ASSIGN = "^<-|←|＜－"
@@ -149,6 +154,9 @@ class Interpreter:
 
     def complie_patterns(self):
         self.type_pattern = re.compile(self.TYPE)
+        self.while_pattern = re.compile(self.WHILE)
+        self.endwhile_pattern = re.compile(self.ENDWHILE)
+        self.do_pattern = re.compile(self.DO)
         self.if_pattern = re.compile(self.IF)
         self.else_pattern = re.compile(self.ELSE)
         self.elseif_pattern = re.compile(self.ELSEIF)
@@ -387,6 +395,73 @@ class Interpreter:
 
         return line_pointa
 
+    def interpret_while_block(self, lines: List[str], indent: str = "", line_pointa=0):
+        if len(lines) == 0 or (
+            indent != "" and not self.check_indent(lines[line_pointa], indent)
+        ):
+            return line_pointa
+
+        res = self.get_pattern_and_remain(
+            self.while_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
+        if not res:
+            return line_pointa
+        _, remain = res
+        line_pointa, start_state = self.process_nested_process(
+            lines, line_pointa, remain, indent
+        )
+        res = self.get_pattern_and_remain(
+            self.endwhile_pattern,
+            lines[line_pointa],
+            indent=indent,
+            line_num=line_pointa,
+        )
+        if not res:
+            raise exception.InvalidWhileBlockException(line_num=line_pointa)
+        line_pointa += 1
+        self.lts.add_transition(self.current_state, "", start_state)
+        endwhile_state = self.lts.create_state()
+        self.lts.add_transition(start_state, "endwhile", endwhile_state)
+
+        self.current_state = endwhile_state
+
+        return line_pointa
+
+    def interpret_do_while_block(
+        self, lines: List[str], indent: str = "", line_pointa=0
+    ):
+        if len(lines) == 0 or (
+            indent != "" and not self.check_indent(lines[line_pointa], indent)
+        ):
+            return line_pointa
+
+        res = self.get_pattern_and_remain(
+            self.do_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
+        if not res:
+            return line_pointa
+        _, _ = res
+        line_pointa, start_state = self.process_nested_process(
+            lines, line_pointa, "do", indent
+        )
+        res = self.get_pattern_and_remain(
+            self.while_pattern,
+            lines[line_pointa],
+            indent=indent,
+            line_num=line_pointa,
+        )
+        if not res:
+            raise exception.InvalidDoWhileBlockException(line_num=line_pointa)
+        line_pointa += 1
+        _, remain = res
+        self.lts.add_transition(self.current_state, remain, start_state)
+        endwhile_state = self.lts.create_state()
+        self.lts.add_transition(self.current_state, "else", endwhile_state)
+
+        self.current_state = endwhile_state
+
+        return line_pointa
+
     def process_nested_process(
         self,
         lines: List[str],
@@ -417,9 +492,26 @@ class Interpreter:
             )
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
-            if self.interpret_var_declare(
-                lines[line_pointa]
-            ) or self.interpret_arithmetic_formula(lines[line_pointa]):
+            line_pointa = self.interpret_while_block(
+                lines, indent=indent, line_pointa=line_pointa
+            )
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            line_pointa = self.interpret_do_while_block(
+                lines, indent=indent, line_pointa=line_pointa
+            )
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            if (
+                self.interpret_var_declare(
+                    lines[line_pointa], indent=indent, line_num=line_pointa
+                )
+                is not None
+                or self.interpret_arithmetic_formula(
+                    lines[line_pointa], indent=indent, line_num=line_pointa
+                )
+                is not None
+            ):
                 state = self.lts.create_state()
                 self.lts.add_transition(
                     self.current_state, lines[line_pointa].strip(), state
