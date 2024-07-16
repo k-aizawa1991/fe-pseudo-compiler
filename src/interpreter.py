@@ -259,32 +259,42 @@ class Interpreter:
         return val, remain
 
     def get_pattern_and_remain(
-        self, pattern: Pattern, target: str, exception: Exception = None
+        self, pattern: Pattern, target: str, e: Exception = None, indent="", line_num=0
     ) -> Tuple[str, str]:
+        if indent != "" and not self.check_indent(target, indent):
+            raise exception.InvalidIndentException(line_num=line_num)
         target = target.strip()
         matched = pattern.match(target)
         if not matched:
-            if exception is None:
+            if e is None:
                 return None
             else:
-                raise exception(target)
+                raise e(target)
         return target[matched.start() : matched.end()], target[matched.end() :].strip()
 
-    def process_var_assigns(self, remain):
+    def process_var_assigns(self, remain, indent="", line_num=0):
         vars_list = []
         while True:
             name, remain = self.get_pattern_and_remain(
-                self.name_pattern, remain, exception.NamePatternException
+                self.name_pattern,
+                remain,
+                exception.NamePatternException,
+                indent=indent,
+                line_num=line_num,
             )
             vars_list.append(name)
-            res = self.get_pattern_and_remain(self.assign_pattern, remain)
+            res = self.get_pattern_and_remain(
+                self.assign_pattern, remain, indent=indent, line_num=line_num
+            )
             if res:
                 _, remain = res
                 val, remain = self.interpret_arithmetic_formula(remain)
                 self.name_val_map[name] = val
             else:
                 self.name_val_map[name] = None
-            res = self.get_pattern_and_remain(self.comma_pattern, remain)
+            res = self.get_pattern_and_remain(
+                self.comma_pattern, remain, indent=indent, line_num=line_num
+            )
             if res:
                 _, remain = res
                 continue
@@ -292,13 +302,20 @@ class Interpreter:
                 break
         return vars_list, remain
 
-    def interpret_var_declare(self, line):
-        res = self.get_pattern_and_remain(self.type_pattern, line)
+    def interpret_var_declare(self, line, indent="", line_num=0):
+        res = self.get_pattern_and_remain(
+            self.type_pattern,
+            line,
+            indent=indent,
+            line_num=line_num,
+        )
         if not res:
             return None
         type_str, remain = res
         _, remain = self.get_pattern_and_remain(
-            self.colon_pattern, remain, exception.DeclareException
+            self.colon_pattern,
+            remain,
+            exception.DeclareException,
         )
         vars, remain = self.process_var_assigns(remain)
 
@@ -311,7 +328,9 @@ class Interpreter:
             indent != "" and not self.check_indent(lines[line_pointa], indent)
         ):
             return line_pointa
-        res = self.get_pattern_and_remain(self.if_pattern, lines[line_pointa])
+        res = self.get_pattern_and_remain(
+            self.if_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
         end_states = []
         if not res:
             return line_pointa
@@ -328,7 +347,12 @@ class Interpreter:
         while True:
             if len(lines) == 0:
                 break
-            res = self.get_pattern_and_remain(self.elseif_pattern, lines[line_pointa])
+            res = self.get_pattern_and_remain(
+                self.elseif_pattern,
+                lines[line_pointa],
+                indent=indent,
+                line_num=line_pointa,
+            )
             if not res:
                 break
             _, remain = res
@@ -342,7 +366,9 @@ class Interpreter:
             end_states.append(self.current_state)
         if len(lines) <= line_pointa:
             raise exception.InvalidFormulaException()
-        res = self.get_pattern_and_remain(self.else_pattern, lines[line_pointa])
+        res = self.get_pattern_and_remain(
+            self.else_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
         if res:
             child_indent = self.extract_indent(lines[line_pointa + 1])
             if len(indent) >= len(child_indent):
@@ -362,7 +388,9 @@ class Interpreter:
 
         if len(lines) <= line_pointa:
             raise exception.InvalidFormulaException()
-        res = self.get_pattern_and_remain(self.endif_pattern, lines[line_pointa])
+        res = self.get_pattern_and_remain(
+            self.endif_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
         if not res:
             raise exception.InvalidIfBlockException(line_num=line_pointa)
         line_pointa += 1
