@@ -410,7 +410,6 @@ class Interpreter:
 
     def interpret_process(self, lines: List[str], indent: str = "", line_pointa=0):
         while lines is not None and len(lines) != 0:
-            print(line_pointa, "行目", lines[line_pointa])
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
             line_pointa = self.interpret_if_block(
