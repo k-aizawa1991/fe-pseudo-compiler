@@ -57,6 +57,19 @@ class InvalidDoWhileBlockException(PatternException):
         super().__init__(arg, line_num)
         self.message = "do while文が正しく終了しませんでした。"
 
+
+class InvalidForBlockException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "for文が正しく終了しませんでした。"
+
+
+class InvalidForSentenceException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "for文の繰り返しの定義正しくありません。"
+
+
 class InvalidIndentException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
