@@ -62,6 +62,11 @@ class Interpreter:
     }
 
     TYPE = f"^({INT_TYPE}|{REAL_TYPE}|{STR_TYPE}|{BOOL_TYPE})({ARR_SUFFIX})?"
+
+    # <FOR句>
+    FOR = "^for"
+    ENDFOR = "^endfor$"
+
     # <IF句>
     IF = "^if"
     ELSE = "^else"
@@ -161,6 +166,10 @@ class Interpreter:
         self.else_pattern = re.compile(self.ELSE)
         self.elseif_pattern = re.compile(self.ELSEIF)
         self.endif_pattern = re.compile(self.ENDIF)
+
+        self.for_pattern = re.compile(self.FOR)
+        self.endfor_pattern = re.compile(self.ENDFOR)
+
         self.name_pattern = re.compile(self.NAME)
         self.num_val_pattern = re.compile(self.NUM_VAL)
         self.operand_pattern = re.compile(self.OPERAND)
@@ -462,6 +471,39 @@ class Interpreter:
 
         return line_pointa
 
+    def interpret_for_block(self, lines: List[str], indent: str = "", line_pointa=0):
+        if len(lines) == 0 or (
+            indent != "" and not self.check_indent(lines[line_pointa], indent)
+        ):
+            return line_pointa
+
+        res = self.get_pattern_and_remain(
+            self.for_pattern, lines[line_pointa], indent=indent, line_num=line_pointa
+        )
+        if not res:
+            return line_pointa
+        _, remain = res
+        line_pointa, start_state = self.process_nested_process(
+            lines, line_pointa, remain, indent
+        )
+        res = self.get_pattern_and_remain(
+            self.endfor_pattern,
+            lines[line_pointa],
+            indent=indent,
+            line_num=line_pointa,
+        )
+        if not res:
+            raise exception.InvalidForBlockException(line_num=line_pointa)
+        line_pointa += 1
+        _, remain = res
+        self.lts.add_transition(self.current_state, remain, start_state)
+        endfor_state = self.lts.create_state()
+        self.lts.add_transition(start_state, "endfor", endfor_state)
+
+        self.current_state = endfor_state
+
+        return line_pointa
+
     def process_nested_process(
         self,
         lines: List[str],
@@ -498,6 +540,11 @@ class Interpreter:
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
             line_pointa = self.interpret_do_while_block(
+                lines, indent=indent, line_pointa=line_pointa
+            )
+            if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            line_pointa = self.interpret_for_block(
                 lines, indent=indent, line_pointa=line_pointa
             )
             if self.extract_indent(lines[line_pointa]) != indent:
