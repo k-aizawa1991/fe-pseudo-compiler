@@ -63,6 +63,12 @@ class Interpreter:
 
     TYPE = f"^({INT_TYPE}|{REAL_TYPE}|{STR_TYPE}|{BOOL_TYPE})({ARR_SUFFIX})?"
 
+    # <引数宣言>
+    FUNC_ARG = f"{TYPE[1:]}:[ ]*{NAME}"
+    # <関数句>
+    FUNC_START = "^◯"
+    FUNC_ARGS = f"^\\(({FUNC_ARG}(,[ ]*{FUNC_ARG})*)?\\)"
+
     # <FOR句>
     FOR = "^for"
     ENDFOR = "^endfor$"
@@ -187,6 +193,8 @@ class Interpreter:
         self.colon_pattern = re.compile(self.COLON)
         self.comma_pattern = re.compile(self.COMMA)
         self.assign_pattern = re.compile(self.ASSIGN)
+        self.func_start_pattern = re.compile(self.FUNC_START)
+        self.func_args_pattern = re.compile(self.FUNC_ARGS)
 
     def interpret_arithmetic_formula(
         self, line: str, stack: List[str] = None, pended_op=None
@@ -562,6 +570,39 @@ class Interpreter:
             raise exception.InvalidIndentException(line_num=line_pointa)
         return line_pointa, start_state
 
+    def interpret_func_block(
+        self,
+        lines: List[str],
+        indent: str = "",
+        line_pointa=0,
+    ):
+        if len(lines) == 0 or (
+            indent != "" and not self.check_indent(lines[line_pointa], indent)
+        ):
+            return line_pointa
+
+        res = self.get_pattern_and_remain(
+            self.func_start_pattern,
+            lines[line_pointa],
+            indent=indent,
+            line_num=line_pointa,
+        )
+        if not res:
+            return line_pointa
+        _, remain = res
+        func_name, _ = self.get_pattern_and_remain(
+            self.name_pattern,
+            remain,
+            exception.FuncNameException,
+            indent=indent,
+            line_num=line_pointa,
+        )
+        func_lts = LabeledTransitionSystem()
+        self.func_lts_map[func_name] = func_lts
+        current_state = self.current_state
+        line_pointa, _ = self.process_nested_process(lines, line_pointa, lts=func_lts)
+        self.current_state = current_state
+        return line_pointa
 
     def interpret_process(
         self,
