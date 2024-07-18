@@ -10,6 +10,21 @@ class PatternException(Exception):
         return f"{line}{self.message}"
 
 
+class FuncStartPatternException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.mesage = (
+            f'[{self.arg}]は関数ではありません。関数は"◯"から開始してください。'
+        )
+
+
+class FuncNameException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"[{self.arg}]は関数に利用できません。"
+
+
+
 class NamePatternException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
