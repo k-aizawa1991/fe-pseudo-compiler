@@ -154,6 +154,7 @@ class Interpreter:
         self.name_val_map = {}
         self.name_type_map = {}
         self.lts = LabeledTransitionSystem()
+        self.func_lts_map = {}
         self.current_state = self.lts.get_init_state()
         self.complie_patterns()
 
@@ -340,7 +341,13 @@ class Interpreter:
             self.name_type_map[var] = type_str
         return remain
 
-    def interpret_if_block(self, lines: List[str], indent: str = "", line_pointa=0):
+    def interpret_if_block(
+        self,
+        lines: List[str],
+        indent: str = "",
+        line_pointa=0,
+        lts: LabeledTransitionSystem | None = None,
+    ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
         ):
@@ -352,8 +359,10 @@ class Interpreter:
         if not res:
             return line_pointa
         _, remain = res
+        if lts is None:
+            lts = self.lts
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, remain, indent
+            lines, line_pointa, remain, indent, self.current_state, lts=lts
         )
 
         end_states.append(self.current_state)
@@ -370,7 +379,7 @@ class Interpreter:
                 break
             _, remain = res
             line_pointa, _ = self.process_nested_process(
-                lines, line_pointa, remain, indent, start_state
+                lines, line_pointa, remain, indent, start_state, lts=lts
             )
             end_states.append(self.current_state)
         if len(lines) <= line_pointa:
@@ -380,12 +389,12 @@ class Interpreter:
         )
         if res:
             line_pointa, _ = self.process_nested_process(
-                lines, line_pointa, "else", indent, start_state
+                lines, line_pointa, "else", indent, start_state, lts=lts
             )
             end_states.append(self.current_state)
         else:
-            state = self.lts.create_state()
-            self.lts.add_transition(start_state, "else", state)
+            state = lts.create_state()
+            lts.add_transition(start_state, "else", state)
             self.current_state = state
             end_states.append(self.current_state)
 
@@ -397,14 +406,20 @@ class Interpreter:
         if not res:
             raise exception.InvalidIfBlockException(line_num=line_pointa)
         line_pointa += 1
-        endif_state = self.lts.create_state()
+        endif_state = lts.create_state()
         for end_state in end_states:
-            self.lts.add_transition(end_state, "endif", endif_state)
+            lts.add_transition(end_state, "endif", endif_state)
         self.current_state = endif_state
 
         return line_pointa
 
-    def interpret_while_block(self, lines: List[str], indent: str = "", line_pointa=0):
+    def interpret_while_block(
+        self,
+        lines: List[str],
+        indent: str = "",
+        line_pointa=0,
+        lts: LabeledTransitionSystem | None = None,
+    ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
         ):
@@ -415,9 +430,11 @@ class Interpreter:
         )
         if not res:
             return line_pointa
+        if lts is None:
+            lts = self.lts
         _, remain = res
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, remain, indent
+            lines, line_pointa, remain, indent, self.current_state, lts=lts
         )
         res = self.get_pattern_and_remain(
             self.endwhile_pattern,
@@ -428,16 +445,20 @@ class Interpreter:
         if not res:
             raise exception.InvalidWhileBlockException(line_num=line_pointa)
         line_pointa += 1
-        self.lts.add_transition(self.current_state, "", start_state)
-        endwhile_state = self.lts.create_state()
-        self.lts.add_transition(start_state, "endwhile", endwhile_state)
+        lts.add_transition(self.current_state, "", start_state)
+        endwhile_state = lts.create_state()
+        lts.add_transition(start_state, "endwhile", endwhile_state)
 
         self.current_state = endwhile_state
 
         return line_pointa
 
     def interpret_do_while_block(
-        self, lines: List[str], indent: str = "", line_pointa=0
+        self,
+        lines: List[str],
+        indent: str = "",
+        line_pointa=0,
+        lts: LabeledTransitionSystem | None = None,
     ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
@@ -449,9 +470,11 @@ class Interpreter:
         )
         if not res:
             return line_pointa
+        if lts is None:
+            lts = self.lts
         _, _ = res
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, "do", indent
+            lines, line_pointa, "do", indent, self.current_state, lts=lts
         )
         res = self.get_pattern_and_remain(
             self.while_pattern,
@@ -463,15 +486,21 @@ class Interpreter:
             raise exception.InvalidDoWhileBlockException(line_num=line_pointa)
         line_pointa += 1
         _, remain = res
-        self.lts.add_transition(self.current_state, remain, start_state)
-        endwhile_state = self.lts.create_state()
-        self.lts.add_transition(self.current_state, "else", endwhile_state)
+        lts.add_transition(self.current_state, remain, start_state)
+        endwhile_state = lts.create_state()
+        lts.add_transition(self.current_state, "else", endwhile_state)
 
         self.current_state = endwhile_state
 
         return line_pointa
 
-    def interpret_for_block(self, lines: List[str], indent: str = "", line_pointa=0):
+    def interpret_for_block(
+        self,
+        lines: List[str],
+        indent: str = "",
+        line_pointa=0,
+        lts: LabeledTransitionSystem | None = None,
+    ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
         ):
@@ -482,9 +511,11 @@ class Interpreter:
         )
         if not res:
             return line_pointa
+        if lts is None:
+            lts = self.lts
         _, remain = res
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, remain, indent
+            lines, line_pointa, remain, indent, self.current_state, lts=lts
         )
         res = self.get_pattern_and_remain(
             self.endfor_pattern,
@@ -496,9 +527,9 @@ class Interpreter:
             raise exception.InvalidForBlockException(line_num=line_pointa)
         line_pointa += 1
         _, remain = res
-        self.lts.add_transition(self.current_state, remain, start_state)
-        endfor_state = self.lts.create_state()
-        self.lts.add_transition(start_state, "endfor", endfor_state)
+        lts.add_transition(self.current_state, remain, start_state)
+        endfor_state = lts.create_state()
+        lts.add_transition(start_state, "endfor", endfor_state)
 
         self.current_state = endfor_state
 
@@ -508,44 +539,59 @@ class Interpreter:
         self,
         lines: List[str],
         line_pointa: int,
-        in_label: str,
+        in_label: str | None = None,
         indent: str = "",
         start_state: str | None = None,
+        lts: LabeledTransitionSystem | None = None,
     ):
         child_indent = self.extract_indent(lines[line_pointa + 1])
         if len(indent) >= len(child_indent):
             raise exception.InvalidIndentException(line_num=line_pointa + 1)
+        if lts is None:
+            lts = self.lts
         if start_state is None:
-            start_state = self.current_state
-        state = self.lts.create_state()
-        self.lts.add_transition(start_state, in_label, state)
+            start_state = lts.init_state
+        if in_label is not None:
+            state = lts.create_state()
+            lts.add_transition(start_state, in_label, state)
+        else:
+            state = start_state
         self.current_state = state
-        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1)
+        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1, lts=lts)
         if not self.check_indent(lines[line_pointa], indent):
             raise exception.InvalidIndentException(line_num=line_pointa)
         return line_pointa, start_state
 
-    def interpret_process(self, lines: List[str], indent: str = "", line_pointa=0):
+
+    def interpret_process(
+        self,
+        lines: List[str],
+        indent: str = "",
+        line_pointa=0,
+        lts: LabeledTransitionSystem | None = None,
+    ):
+        if lts is None:
+            lts = self.lts
         while lines is not None and len(lines) != 0:
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
             line_pointa = self.interpret_if_block(
-                lines, indent=indent, line_pointa=line_pointa
+                lines, indent=indent, line_pointa=line_pointa, lts=lts
             )
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
             line_pointa = self.interpret_while_block(
-                lines, indent=indent, line_pointa=line_pointa
+                lines, indent=indent, line_pointa=line_pointa, lts=lts
             )
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
             line_pointa = self.interpret_do_while_block(
-                lines, indent=indent, line_pointa=line_pointa
+                lines, indent=indent, line_pointa=line_pointa, lts=lts
             )
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
             line_pointa = self.interpret_for_block(
-                lines, indent=indent, line_pointa=line_pointa
+                lines, indent=indent, line_pointa=line_pointa, lts=lts
             )
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
@@ -559,8 +605,8 @@ class Interpreter:
                 )
                 is not None
             ):
-                state = self.lts.create_state()
-                self.lts.add_transition(
+                state = lts.create_state()
+                lts.add_transition(
                     self.current_state, lines[line_pointa].strip(), state
                 )
                 self.current_state = state
