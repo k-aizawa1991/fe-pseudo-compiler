@@ -570,6 +570,7 @@ def test_interpret_while_block_invalid_indent():
     # エラーメッセージを検証
     assert str(e.value) == "3行目:インデントに誤りがあります。"
 
+
 def test_interpret_do_while_block():
     interpreter = Interpreter()
     lines = [
@@ -665,7 +666,6 @@ def test_interpret_do_while_block_invalid_indent():
     assert str(e.value) == "3行目:インデントに誤りがあります。"
 
 
-
 def test_interpret_for_block():
     interpreter = Interpreter()
     lines = [
@@ -759,3 +759,77 @@ def test_interpret_for_block_invalid_indent():
     # エラーメッセージを検証
     assert str(e.value) == "3行目:インデントに誤りがあります。"
 
+
+def test_interpret_func_block():
+    interpreter = Interpreter()
+    lines = [
+        "◯ test_func(整数型:x)",
+        "    整数型:a←1+2",
+        "    整数型:b←2+3",
+        "c=a+b",
+    ]
+    remains = interpreter.interpret_func_block(lines)
+    print(interpreter.lts)
+    assert "test_func" in interpreter.func_lts_map
+    test_func_lts = interpreter.func_lts_map["test_func"]
+    assert len(test_func_lts.transitions) == 3
+    assert len(interpreter.lts.transitions) == 1
+    assert test_func_lts.get_transition_state("S0", "整数型:a←1+2") == "S1"
+    assert test_func_lts.get_transition_state("S1", "整数型:b←2+3") == "S2"
+
+    assert remains == 3
+
+
+def test_interpret_nested_func_block():
+    interpreter = Interpreter()
+    lines = [
+        "◯ test_func(整数型:x)",
+        "    整数型:a←1+2",
+        "    整数型:b←2+3",
+        "    while(4<2)",
+        "        整数型:a←4",
+        "        整数型:b←5+1",
+        "        if(a>4)",
+        "            整数型:a←6+1",
+        "            整数型:b←7+2",
+        "        endif",
+        "    endwhile",
+        "c=a+b",
+    ]
+    remains = interpreter.interpret_func_block(lines)
+    print(interpreter.func_lts_map["test_func"])
+    assert "test_func" in interpreter.func_lts_map
+    test_func_lts = interpreter.func_lts_map["test_func"]
+    assert len(test_func_lts.transitions) == 12
+    assert len(interpreter.lts.transitions) == 1
+    print(interpreter.lts)
+    assert test_func_lts.get_transition_state("S0", "整数型:a←1+2") == "S1"
+    assert test_func_lts.get_transition_state("S1", "整数型:b←2+3") == "S2"
+    assert test_func_lts.get_transition_state("S2", "(4<2)") == "S3"
+    assert test_func_lts.get_transition_state("S2", "endwhile") == "S11"
+    assert test_func_lts.get_transition_state("S3", "整数型:a←4") == "S4"
+    assert test_func_lts.get_transition_state("S4", "整数型:b←5+1") == "S5"
+    assert test_func_lts.get_transition_state("S5", "(a>4)") == "S6"
+    assert test_func_lts.get_transition_state("S6", "整数型:a←6+1") == "S7"
+    assert test_func_lts.get_transition_state("S7", "整数型:b←7+2") == "S8"
+    assert test_func_lts.get_transition_state("S8", "endif") == "S10"
+    assert test_func_lts.get_transition_state("S5", "else") == "S9"
+    assert test_func_lts.get_transition_state("S9", "endif") == "S10"
+    assert test_func_lts.get_transition_state("S10", "") == "S2"
+
+    assert remains == 11
+
+
+def test_interpret_func_block_invalid_indent():
+    interpreter = Interpreter()
+    lines = [
+        "◯ test_func(整数型:x)",
+        "    整数型:a←1+2",
+        "  整数型:b←2+3",
+        "c=a+b",
+    ]
+    with pytest.raises(exception.InvalidIndentException) as e:
+        interpreter.interpret_func_block(lines)
+
+    # エラーメッセージを検証
+    assert str(e.value) == "3行目:インデントに誤りがあります。"
