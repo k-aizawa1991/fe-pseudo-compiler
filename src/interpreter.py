@@ -88,6 +88,8 @@ class Interpreter:
     COMMA = "^,"
     ASSIGN = "^<-|←|＜－"
 
+    RETURN = "^return"
+
     LOGICAL_VAL_MAP = {"true": True, "false": False}
 
     OPERATOR_FUNC_MAP = {
@@ -195,6 +197,8 @@ class Interpreter:
         self.assign_pattern = re.compile(self.ASSIGN)
         self.func_start_pattern = re.compile(self.FUNC_START)
         self.func_args_pattern = re.compile(self.FUNC_ARGS)
+
+        self.return_pattern = re.compile(self.RETURN)
 
     def interpret_arithmetic_formula(
         self,
@@ -374,6 +378,22 @@ class Interpreter:
         _, remain = self.process_var_assigns(line, dry_run=dry_run)
         return remain
 
+    def interpret_return(
+        self, line: str, indent: str = "", line_num: int = 0, dry_run: bool = False
+    ):
+        res = self.get_pattern_and_remain(
+            self.return_pattern,
+            line,
+            indent=indent,
+            line_num=line_num,
+        )
+        if not res:
+            return None
+        _, remain = res
+        return self.interpret_arithmetic_formula(
+            remain, dry_run=dry_run, line_num=line_num
+        )
+
     def interpret_var_declare(self, line, indent="", line_num=0, dry_run: bool = False):
         res = self.get_pattern_and_remain(
             self.type_pattern,
@@ -398,6 +418,7 @@ class Interpreter:
     def interpret_if_block(
         self,
         lines: List[str],
+        return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
         lts: LabeledTransitionSystem | None = None,
@@ -416,7 +437,13 @@ class Interpreter:
         if lts is None:
             lts = self.lts
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, remain, indent, self.current_state, lts=lts
+            lines,
+            line_pointa,
+            return_tuples,
+            remain,
+            indent,
+            self.current_state,
+            lts=lts,
         )
 
         end_states.append(self.current_state)
@@ -433,7 +460,7 @@ class Interpreter:
                 break
             _, remain = res
             line_pointa, _ = self.process_nested_process(
-                lines, line_pointa, remain, indent, start_state, lts=lts
+                lines, line_pointa, return_tuples, remain, indent, start_state, lts=lts
             )
             end_states.append(self.current_state)
         if len(lines) <= line_pointa:
@@ -443,7 +470,7 @@ class Interpreter:
         )
         if res:
             line_pointa, _ = self.process_nested_process(
-                lines, line_pointa, "else", indent, start_state, lts=lts
+                lines, line_pointa, return_tuples, "else", indent, start_state, lts=lts
             )
             end_states.append(self.current_state)
         else:
@@ -470,6 +497,7 @@ class Interpreter:
     def interpret_while_block(
         self,
         lines: List[str],
+        return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
         lts: LabeledTransitionSystem | None = None,
@@ -488,7 +516,13 @@ class Interpreter:
             lts = self.lts
         _, remain = res
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, remain, indent, self.current_state, lts=lts
+            lines,
+            line_pointa,
+            return_tuples,
+            remain,
+            indent,
+            self.current_state,
+            lts=lts,
         )
         res = self.get_pattern_and_remain(
             self.endwhile_pattern,
@@ -510,6 +544,7 @@ class Interpreter:
     def interpret_do_while_block(
         self,
         lines: List[str],
+        return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
         lts: LabeledTransitionSystem | None = None,
@@ -528,7 +563,7 @@ class Interpreter:
             lts = self.lts
         _, _ = res
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, "do", indent, self.current_state, lts=lts
+            lines, line_pointa, return_tuples, "do", indent, self.current_state, lts=lts
         )
         res = self.get_pattern_and_remain(
             self.while_pattern,
@@ -551,6 +586,7 @@ class Interpreter:
     def interpret_for_block(
         self,
         lines: List[str],
+        return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
         lts: LabeledTransitionSystem | None = None,
@@ -569,7 +605,13 @@ class Interpreter:
             lts = self.lts
         _, remain = res
         line_pointa, start_state = self.process_nested_process(
-            lines, line_pointa, remain, indent, self.current_state, lts=lts
+            lines,
+            line_pointa,
+            return_tuples,
+            remain,
+            indent,
+            self.current_state,
+            lts=lts,
         )
         res = self.get_pattern_and_remain(
             self.endfor_pattern,
@@ -612,7 +654,7 @@ class Interpreter:
             state = start_state
         self.current_state = state
         line_pointa = self.interpret_process(
-            lines, child_indent, line_pointa + 1, lts=lts
+            lines, return_tuples, child_indent, line_pointa + 1, lts=lts
         )
         if not self.check_indent(lines[line_pointa], indent):
             raise exception.InvalidIndentException(line_num=line_pointa)
@@ -645,16 +687,28 @@ class Interpreter:
             indent=indent,
             line_num=line_pointa,
         )
+        return_tuples: List[Tuple[str, str]] = []
+        self.process_func_args(remain, line_pointa)
         func_lts = LabeledTransitionSystem()
         self.func_lts_map[func_name] = func_lts
         current_state = self.current_state
-        line_pointa, _ = self.process_nested_process(lines, line_pointa, lts=func_lts)
+        line_pointa, _ = self.process_nested_process(
+            lines, line_pointa, return_tuples, lts=func_lts
+        )
+        if len(return_tuples) != 0:
+            return_state = func_lts.create_state()
+            for source_state, label in return_tuples:
+                # 自動で作成されるendifやendfor, endwhileなどを削除
+                func_lts.clear_transition(source_state)
+                func_lts.add_transition(source_state, label, return_state)
+
         self.current_state = current_state
         return line_pointa
 
     def interpret_process(
         self,
         lines: List[str],
+        return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
         lts: LabeledTransitionSystem | None = None,
@@ -683,6 +737,10 @@ class Interpreter:
                 lines, indent=indent, line_pointa=line_pointa, lts=lts
             )
             if self.extract_indent(lines[line_pointa]) != indent:
+                break
+            if self.interpret_return(lines[line_pointa]) is not None:
+                return_tuples.append((self.current_state, lines[line_pointa].strip()))
+                line_pointa += 1
                 break
             if (
                 self.interpret_var_declare(
