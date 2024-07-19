@@ -352,6 +352,28 @@ class Interpreter:
                 break
         return vars_list, remain
 
+    def interpret_var_assign(
+        self, line: str, indent: str = "", line_num: int = 0, dry_run: bool = False
+    ):
+        res = self.get_pattern_and_remain(
+            self.name_pattern,
+            line,
+            indent=indent,
+            line_num=line_num,
+        )
+        if not res:
+            return None
+        var_name, remain = res
+        res = self.get_pattern_and_remain(
+            self.assign_pattern, remain, line_num=line_num
+        )
+        if not res:
+            return None
+        if var_name not in self.name_val_map:
+            raise exception.NameNotDefinedException(var_name)
+        _, remain = self.process_var_assigns(line, dry_run=dry_run)
+        return remain
+
     def interpret_var_declare(self, line, indent="", line_num=0, dry_run: bool = False):
         res = self.get_pattern_and_remain(
             self.type_pattern,
@@ -664,6 +686,13 @@ class Interpreter:
                 break
             if (
                 self.interpret_var_declare(
+                    lines[line_pointa],
+                    indent=indent,
+                    line_num=line_pointa,
+                    dry_run=True,
+                )
+                is not None
+                or self.interpret_var_assign(
                     lines[line_pointa],
                     indent=indent,
                     line_num=line_pointa,
