@@ -244,6 +244,15 @@ def test_interpret_var_declare():
     remain == ""
 
 
+def test_interpret_var_assign():
+    interpreter = Interpreter()
+    remain = interpreter.interpret_var_declare("整数型：a←1")
+    remain = interpreter.interpret_var_assign("a←a+2+3")
+    assert interpreter.name_val_map["a"] == 6
+    assert remain == ""
+
+
+
 def test_process_var_assigns_and_use():
     interpreter = Interpreter()
     actual_list, remain = interpreter.process_var_assigns("a←1+2+3, b, c←5.4")

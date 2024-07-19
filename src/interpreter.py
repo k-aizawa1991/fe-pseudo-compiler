@@ -197,11 +197,21 @@ class Interpreter:
         self.func_args_pattern = re.compile(self.FUNC_ARGS)
 
     def interpret_arithmetic_formula(
-        self, line: str, stack: List[str] = None, pended_op=None
+        self,
+        line: str,
+        stack: List[str] = None,
+        pended_op=None,
+        indent: str = "",
+        dry_run: bool = False,
+        line_num: str = None,
     ):
-        result, remain = self.interpret_arithmetic_operand(line, stack)
+        if indent != "" and not self.check_indent(line, indent):
+            raise exception.InvalidIndentException(line_num=line_num)
+        result, remain = self.interpret_arithmetic_operand(line, stack, dry_run=dry_run)
         while True:
-            res = self.process_operator(remain, stack, result, pended_op=pended_op)
+            res = self.process_operator(
+                remain, stack, result, pended_op=pended_op, dry_run=dry_run
+            )
             if not res:
                 break
             result, remain = res
@@ -214,6 +224,7 @@ class Interpreter:
         val,
         exception: exception.PatternException = None,
         pended_op: str = None,
+        dry_run: bool = False,
     ):
         res = self.get_pattern_and_remain(self.operators_pattern, remain, exception)
         if not res:
@@ -235,22 +246,30 @@ class Interpreter:
 
         if stack is not None:
             stack.append(op)
+        if dry_run:
+            return None, remain
         return self.OPERATOR_FUNC_MAP[op](val, val2), remain
 
-    def interpret_arithmetic_operand(self, line: str, stack: List[str] = None):
+    def interpret_arithmetic_operand(
+        self, line: str, stack: List[str] = None, dry_run: bool = False
+    ):
         res = self.get_pattern_and_remain(self.parenthesis_start_pattern, line)
         if res:
             _, remain = res
-            val, remain = self.interpret_arithmetic_formula(remain, stack)
+            val, remain = self.interpret_arithmetic_formula(
+                remain, stack, dry_run=dry_run
+            )
             _, remain = self.get_pattern_and_remain(
                 self.parenthesis_end_pattern,
                 remain,
                 exception.InvalidParenthesisException,
             )
             return val, remain
-        return self.interpret_operand(line, stack)
+        return self.interpret_operand(line, stack, dry_run=dry_run)
 
-    def interpret_operand(self, line: str, stack: List[str] = None):
+    def interpret_operand(
+        self, line: str, stack: List[str] = None, dry_run: bool = False
+    ):
         res = self.get_pattern_and_remain(self.single_operators_pattern, line)
         if res:
             single_op, line = res
@@ -260,7 +279,7 @@ class Interpreter:
         if res:
             val, remain = res
             val = self.LOGICAL_VAL_MAP[val]
-            if single_op is not None:
+            if single_op is not None and not dry_run:
                 val = self.SINGLE_OPERATOR_FUNC_MAP[single_op](val)
             return val, remain
         res = self.get_pattern_and_remain(self.name_pattern, line)
@@ -280,12 +299,17 @@ class Interpreter:
             val = int(num_val)
         except ValueError:
             val = float(num_val)
-        if single_op is not None:
+        if single_op is not None and not dry_run:
             val = self.SINGLE_OPERATOR_FUNC_MAP[single_op](val)
         return val, remain
 
     def get_pattern_and_remain(
-        self, pattern: Pattern, target: str, e: Exception = None, indent="", line_num=0
+        self,
+        pattern: Pattern,
+        target: str,
+        e: Exception = None,
+        indent: str = "",
+        line_num: int = 0,
     ) -> Tuple[str, str]:
         if indent != "" and not self.check_indent(target, indent):
             raise exception.InvalidIndentException(line_num=line_num)
@@ -298,7 +322,7 @@ class Interpreter:
                 raise e(target)
         return target[matched.start() : matched.end()], target[matched.end() :].strip()
 
-    def process_var_assigns(self, remain, indent="", line_num=0):
+    def process_var_assigns(self, remain, indent="", line_num=0, dry_run: bool = False):
         vars_list = []
         while True:
             name, remain = self.get_pattern_and_remain(
@@ -314,7 +338,7 @@ class Interpreter:
             )
             if res:
                 _, remain = res
-                val, remain = self.interpret_arithmetic_formula(remain)
+                val, remain = self.interpret_arithmetic_formula(remain, dry_run=dry_run)
                 self.name_val_map[name] = val
             else:
                 self.name_val_map[name] = None
@@ -328,7 +352,29 @@ class Interpreter:
                 break
         return vars_list, remain
 
-    def interpret_var_declare(self, line, indent="", line_num=0):
+    def interpret_var_assign(
+        self, line: str, indent: str = "", line_num: int = 0, dry_run: bool = False
+    ):
+        res = self.get_pattern_and_remain(
+            self.name_pattern,
+            line,
+            indent=indent,
+            line_num=line_num,
+        )
+        if not res:
+            return None
+        var_name, remain = res
+        res = self.get_pattern_and_remain(
+            self.assign_pattern, remain, line_num=line_num
+        )
+        if not res:
+            return None
+        if var_name not in self.name_val_map:
+            raise exception.NameNotDefinedException(var_name)
+        _, remain = self.process_var_assigns(line, dry_run=dry_run)
+        return remain
+
+    def interpret_var_declare(self, line, indent="", line_num=0, dry_run: bool = False):
         res = self.get_pattern_and_remain(
             self.type_pattern,
             line,
@@ -343,7 +389,7 @@ class Interpreter:
             remain,
             exception.DeclareException,
         )
-        vars, remain = self.process_var_assigns(remain)
+        vars, remain = self.process_var_assigns(remain, dry_run=dry_run)
 
         for var in vars:
             self.name_type_map[var] = type_str
@@ -565,7 +611,9 @@ class Interpreter:
         else:
             state = start_state
         self.current_state = state
-        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1, lts=lts)
+        line_pointa = self.interpret_process(
+            lines, child_indent, line_pointa + 1, lts=lts
+        )
         if not self.check_indent(lines[line_pointa], indent):
             raise exception.InvalidIndentException(line_num=line_pointa)
         return line_pointa, start_state
@@ -638,11 +686,24 @@ class Interpreter:
                 break
             if (
                 self.interpret_var_declare(
-                    lines[line_pointa], indent=indent, line_num=line_pointa
+                    lines[line_pointa],
+                    indent=indent,
+                    line_num=line_pointa,
+                    dry_run=True,
+                )
+                is not None
+                or self.interpret_var_assign(
+                    lines[line_pointa],
+                    indent=indent,
+                    line_num=line_pointa,
+                    dry_run=True,
                 )
                 is not None
                 or self.interpret_arithmetic_formula(
-                    lines[line_pointa], indent=indent, line_num=line_pointa
+                    lines[line_pointa],
+                    indent=indent,
+                    line_num=line_pointa,
+                    dry_run=True,
                 )
                 is not None
             ):
