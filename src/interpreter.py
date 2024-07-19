@@ -304,7 +304,12 @@ class Interpreter:
         return val, remain
 
     def get_pattern_and_remain(
-        self, pattern: Pattern, target: str, e: Exception = None, indent="", line_num=0
+        self,
+        pattern: Pattern,
+        target: str,
+        e: Exception = None,
+        indent: str = "",
+        line_num: int = 0,
     ) -> Tuple[str, str]:
         if indent != "" and not self.check_indent(target, indent):
             raise exception.InvalidIndentException(line_num=line_num)
@@ -584,7 +589,9 @@ class Interpreter:
         else:
             state = start_state
         self.current_state = state
-        line_pointa = self.interpret_process(lines, child_indent, line_pointa + 1, lts=lts)
+        line_pointa = self.interpret_process(
+            lines, child_indent, line_pointa + 1, lts=lts
+        )
         if not self.check_indent(lines[line_pointa], indent):
             raise exception.InvalidIndentException(line_num=line_pointa)
         return line_pointa, start_state
