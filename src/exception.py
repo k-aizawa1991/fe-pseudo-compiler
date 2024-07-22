@@ -24,6 +24,17 @@ class FuncNameException(PatternException):
         self.message = f"[{self.arg}]は関数に利用できません。"
 
 
+class InvalidFuncDeclareException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"{self.args}の関数定義が正しくありません。"
+
+
+class FuncArgNotFoundException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"[{self.arg}]に関数の引数が見つかりません。"
+
 
 class NamePatternException(PatternException):
     def __init__(self, arg="", line_num=None):
