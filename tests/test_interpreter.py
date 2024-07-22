@@ -854,3 +854,70 @@ def test_interpret_func_block_invalid_indent():
 
     # エラーメッセージを検証
     assert str(e.value) == "3行目:インデントに誤りがあります。"
+
+
+def test_interpret_main_process():
+    interpreter = Interpreter()
+
+    lines = [
+        "◯ test_func(整数型:x)",
+        "    if (xが5以上)",
+        "        x←x+1",
+        "    elseif (xが3以上)",
+        "        x←x+5",
+        "    else",
+        "        x←x+12",
+        "        return x",
+        "    endif",
+        "    x←x%2",
+        "    return x",
+        "整数型:x",
+        "x←2",
+        "for (iを1から10まで繰り返す)",
+        "    while (xは10以上)",
+        "        x←x-10",
+        "    endwhile",
+        "    x←test_func(x)",
+        "endfor",
+        "if (xは10以上)",
+        "    x←x-10",
+        "endif",
+    ]
+    remains = interpreter.interpret_main_process(lines)
+    print(interpreter.func_lts_map["test_func"])
+    print(interpreter.lts)
+    assert "test_func" in interpreter.func_lts_map
+    test_func_lts = interpreter.func_lts_map["test_func"]
+    assert len(test_func_lts.transitions) == 10
+    assert len(interpreter.lts.transitions) == 14
+
+    assert test_func_lts.get_transition_state("S0", "(xが5以上)") == "S1"
+    assert test_func_lts.get_transition_state("S1", "x←x+1") == "S2"
+    assert test_func_lts.get_transition_state("S2", "endif") == "S7"
+    assert test_func_lts.get_transition_state("S0", "(xが3以上)") == "S3"
+    assert test_func_lts.get_transition_state("S3", "x←x+5") == "S4"
+    assert test_func_lts.get_transition_state("S4", "endif") == "S7"
+    assert test_func_lts.get_transition_state("S0", "else") == "S5"
+    assert test_func_lts.get_transition_state("S5", "x←x+12") == "S6"
+    assert test_func_lts.get_transition_state("S6", "return x") == "S9"
+    assert test_func_lts.get_transition_state("S7", "x←x%2") == "S8"
+    assert test_func_lts.get_transition_state("S8", "return x") == "S9"
+
+    assert interpreter.lts.get_transition_state("S0", "整数型:x") == "S1"
+    assert interpreter.lts.get_transition_state("S1", "x←2") == "S2"
+    assert (
+        interpreter.lts.get_transition_state("S2", "(iを1から10まで繰り返す)") == "S3"
+    )
+    assert interpreter.lts.get_transition_state("S2", "endfor") == "S8"
+    assert interpreter.lts.get_transition_state("S3", "(xは10以上)") == "S4"
+    assert interpreter.lts.get_transition_state("S3", "endwhile") == "S6"
+    assert interpreter.lts.get_transition_state("S4", "x←x-10") == "S5"
+    assert interpreter.lts.get_transition_state("S5", "") == "S3"
+    assert interpreter.lts.get_transition_state("S6", "x←test_func(x)") == "S7"
+    assert interpreter.lts.get_transition_state("S7", "") == "S2"
+    assert interpreter.lts.get_transition_state("S8", "(xは10以上)") == "S9"
+    assert interpreter.lts.get_transition_state("S9", "x←x-10") == "S10"
+    assert interpreter.lts.get_transition_state("S10", "endif") == "S12"
+    assert interpreter.lts.get_transition_state("S8", "else") == "S11"
+    assert interpreter.lts.get_transition_state("S11", "endif") == "S12"
+    assert interpreter.lts.get_transition_state("S12", "return") == "S13"
