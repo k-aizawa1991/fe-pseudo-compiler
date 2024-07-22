@@ -37,6 +37,14 @@ class LabeledTransitionSystem:
         self.transitions[source][label] = target
         self.backwards[target].add((label, source))
 
+    def clear_transition(self, source: str):
+        if source not in self.transitions:
+            raise exception.DoesNotExistException(source)
+        for label in self.transitions[source]:
+            target = self.transitions[source][label]
+            self.backwards[target].remove((label, source))
+        self.transitions[source] = {}
+
     def get_transition_state(self, source: str, label: str):
         if source not in self.transitions:
             raise exception.DoesNotExistException(source)
