@@ -72,6 +72,9 @@ class Interpreter:
     # <FOR句>
     FOR = "^for"
     ENDFOR = "^endfor$"
+    FOR_OP1 = "を"
+    FOR_OP2 = "から"
+    FOR_OP3 = "まで繰り返す"
 
     # <IF句>
     IF = "^if"
@@ -178,6 +181,9 @@ class Interpreter:
 
         self.for_pattern = re.compile(self.FOR)
         self.endfor_pattern = re.compile(self.ENDFOR)
+        self.for_op1_pattern = re.compile(self.FOR_OP1)
+        self.for_op2_pattern = re.compile(self.FOR_OP2)
+        self.for_op3_pattern = re.compile(self.FOR_OP3)
 
         self.name_pattern = re.compile(self.NAME)
         self.num_val_pattern = re.compile(self.NUM_VAL)
@@ -632,6 +638,57 @@ class Interpreter:
         self.current_state = endfor_state
 
         return line_pointa
+
+    def process_for_sentence(self, line: str, line_num: int):
+        name, remain = self.get_pattern_and_remain(
+            self.name_pattern,
+            line,
+            exception.InvalidForSentenceException,
+            line_num=line_num,
+        )
+        _, remain = self.get_pattern_and_remain(
+            self.for_op1_pattern,
+            remain,
+            exception.InvalidForSentenceException,
+            line_num=line_num,
+        )
+        res = self.get_pattern_and_remain(self.name_pattern, line)
+        if res:
+            from_val, remain = res
+            if from_val not in self.name_val_map:
+                raise exception.NameNotDefinedException(from_val, line_num=line_num)
+        else:
+            from_val, remain = self.get_pattern_and_remain(
+                self.num_val_pattern,
+                remain,
+                exception.InvalidForSentenceException,
+                line_num=line_num,
+            )
+        _, remain = self.get_pattern_and_remain(
+            self.for_op2_pattern,
+            remain,
+            exception.InvalidForSentenceException,
+            line_num=line_num,
+        )
+        res = self.get_pattern_and_remain(self.name_pattern, line)
+        if res:
+            to_val, remain = res
+            if to_val not in self.name_val_map:
+                raise exception.NameNotDefinedException(to_val, line_num=line_num)
+        else:
+            to_val, remain = self.get_pattern_and_remain(
+                self.num_val_pattern,
+                remain,
+                exception.InvalidForSentenceException,
+                line_num=line_num,
+            )
+        _, remain = self.get_pattern_and_remain(
+            self.for_op3_pattern,
+            remain,
+            exception.InvalidForSentenceException,
+            line_num=line_num,
+        )
+        return name, from_val, to_val
 
     def process_nested_process(
         self,
