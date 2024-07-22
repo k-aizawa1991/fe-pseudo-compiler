@@ -390,6 +390,8 @@ class Interpreter:
         if not res:
             return None
         _, remain = res
+        if remain.strip() == "":
+            return ""
         return self.interpret_arithmetic_formula(
             remain, dry_run=dry_run, line_num=line_num
         )
