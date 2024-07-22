@@ -26,6 +26,8 @@ class Interpreter:
 
     PALENTHESIS_START = "^\\("
     PALENTHESIS_END = "^\\)"
+    SQUARE_BRACKET_START = "^\\["
+    SQUARE_BRACKET_END = "^\\]"
 
     # <論理値>::= true | false
     LOGICAL_VALUE = "true|false"
@@ -34,13 +36,13 @@ class Interpreter:
     # <数字> ::= 0 | <正数字>
     NUM = "0-9"
     # <英字> ::= a-z | A-Z
-    ALPHABET = "A-z"
+    ALPHABET = "a-zA-Z"
     # <数値> ::= <正数字><数値> | -<正数字><数値> | <数字>
     INT_VAL = "-?" + f"[{NUM}]+"
     REAL_VAL = f"{INT_VAL}(?:\\.[{NUM}]+)?"
     NUM_VAL = f"({REAL_VAL})"
     # <名前>
-    NAME = f"[{ALPHABET}]([{ALPHABET}]|[{NUM}])*"
+    NAME = f"[{ALPHABET}_]([{ALPHABET}_]|[{NUM}])*"
     # <被演算子>
     OPERAND = f"({NUM_VAL}|{NAME})"
 
@@ -192,6 +194,8 @@ class Interpreter:
 
         self.parenthesis_start_pattern = re.compile(self.PALENTHESIS_START)
         self.parenthesis_end_pattern = re.compile(self.PALENTHESIS_END)
+        self.square_bracket_start_pattern = re.compile(self.SQUARE_BRACKET_START)
+        self.square_bracket_end_pattern = re.compile(self.SQUARE_BRACKET_END)
         self.colon_pattern = re.compile(self.COLON)
         self.comma_pattern = re.compile(self.COMMA)
         self.assign_pattern = re.compile(self.ASSIGN)
@@ -303,6 +307,21 @@ class Interpreter:
                 raise exception.NameNotDefinedException(name)
             if stack is not None:
                 stack.append(name)
+            res = self.get_pattern_and_remain(self.square_bracket_start_pattern, remain)
+            if res:
+                _, remain = res
+                if type(self.name_val_map[name]) is not list:
+                    raise exception.InvalidArrayException(name)
+                index, remain = self.interpret_arithmetic_formula(remain)
+                _, remain = self.get_pattern_and_remain(
+                    self.square_bracket_end_pattern,
+                    remain,
+                    exception.InvalidSquareBracketException,
+                )
+                if not int(index) < len(self.name_val_map[name]):
+                    raise exception.InvalidArrayIndexException(name)
+                return self.name_val_map[name][int(index)], remain
+
             return self.name_val_map[name], remain
         num_val, remain = self.get_pattern_and_remain(
             self.num_val_pattern, line, exception.InvalidFormulaException
@@ -352,8 +371,41 @@ class Interpreter:
             )
             if res:
                 _, remain = res
-                val, remain = self.interpret_arithmetic_formula(remain, dry_run=dry_run)
-                self.name_val_map[name] = val
+                # 配列の代入は独立して実施
+                res = self.get_pattern_and_remain(
+                    self.square_bracket_start_pattern, remain
+                )
+                if res:
+                    _, remain = res
+                    array = []
+                    while True:
+                        if self.get_pattern_and_remain(
+                            self.square_bracket_end_pattern, remain
+                        ):
+                            break
+                        val, remain = self.interpret_arithmetic_formula(
+                            remain, dry_run=dry_run
+                        )
+                        if not res:
+                            break
+                        if not dry_run:
+                            array.append(val)
+                        res = self.get_pattern_and_remain(self.comma_pattern, remain)
+                        if res:
+                            _, remain = res
+                        else:
+                            break
+                    self.name_val_map[name] = array
+                    _, remain = self.get_pattern_and_remain(
+                        self.square_bracket_end_pattern,
+                        remain,
+                        exception.InvalidSquareBracketException,
+                    )
+                else:
+                    val, remain = self.interpret_arithmetic_formula(
+                        remain, dry_run=dry_run
+                    )
+                    self.name_val_map[name] = val
             else:
                 self.name_val_map[name] = None
             res = self.get_pattern_and_remain(
@@ -848,7 +900,7 @@ class Interpreter:
         ]
         for end in ends:
             self.lts.add_transition(end, "return", return_state)
-        return line_pointa        
+        return line_pointa
 
     def check_indent(self, line: str, indent: str):
         if indent == "":
