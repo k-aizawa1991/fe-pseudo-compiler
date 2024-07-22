@@ -637,6 +637,7 @@ class Interpreter:
         self,
         lines: List[str],
         line_pointa: int,
+        return_tuples: List[Tuple[str, str]],
         in_label: str | None = None,
         indent: str = "",
         start_state: str | None = None,
