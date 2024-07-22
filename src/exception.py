@@ -72,6 +72,17 @@ class InvalidSquareBracketException(PatternException):
         self.message = '"["に対応する"]"が存在しません。'
 
 
+class InvalidArrayException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"{self.arg}は配列ではありません。"
+
+
+class InvalidArrayIndexException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"{self.arg}の配列外にアクセスしています。"
+
 
 class InvalidIfBlockException(PatternException):
     def __init__(self, arg="", line_num=None):

@@ -371,8 +371,41 @@ class Interpreter:
             )
             if res:
                 _, remain = res
-                val, remain = self.interpret_arithmetic_formula(remain, dry_run=dry_run)
-                self.name_val_map[name] = val
+                # 配列の代入は独立して実施
+                res = self.get_pattern_and_remain(
+                    self.square_bracket_start_pattern, remain
+                )
+                if res:
+                    _, remain = res
+                    array = []
+                    while True:
+                        if self.get_pattern_and_remain(
+                            self.square_bracket_end_pattern, remain
+                        ):
+                            break
+                        val, remain = self.interpret_arithmetic_formula(
+                            remain, dry_run=dry_run
+                        )
+                        if not res:
+                            break
+                        if not dry_run:
+                            array.append(val)
+                        res = self.get_pattern_and_remain(self.comma_pattern, remain)
+                        if res:
+                            _, remain = res
+                        else:
+                            break
+                    self.name_val_map[name] = array
+                    _, remain = self.get_pattern_and_remain(
+                        self.square_bracket_end_pattern,
+                        remain,
+                        exception.InvalidSquareBracketException,
+                    )
+                else:
+                    val, remain = self.interpret_arithmetic_formula(
+                        remain, dry_run=dry_run
+                    )
+                    self.name_val_map[name] = val
             else:
                 self.name_val_map[name] = None
             res = self.get_pattern_and_remain(
