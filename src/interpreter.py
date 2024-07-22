@@ -720,31 +720,38 @@ class Interpreter:
         line_pointa=0,
         lts: LabeledTransitionSystem | None = None,
     ):
+        interpret_targets = [
+            self.interpret_if_block,
+            self.interpret_while_block,
+            self.interpret_do_while_block,
+            self.interpret_for_block,
+        ]
         if lts is None:
             lts = self.lts
-        while lines is not None and len(lines) != 0:
+        while lines is not None and line_pointa < len(lines):
+            is_processed = False
             if self.extract_indent(lines[line_pointa]) != indent:
                 break
-            line_pointa = self.interpret_if_block(
-                lines, indent=indent, line_pointa=line_pointa, lts=lts
+            tmp_line_pointa = self.interpret_func_block(
+                lines, indent=indent, line_pointa=line_pointa
             )
-            if self.extract_indent(lines[line_pointa]) != indent:
-                break
-            line_pointa = self.interpret_while_block(
-                lines, indent=indent, line_pointa=line_pointa, lts=lts
-            )
-            if self.extract_indent(lines[line_pointa]) != indent:
-                break
-            line_pointa = self.interpret_do_while_block(
-                lines, indent=indent, line_pointa=line_pointa, lts=lts
-            )
-            if self.extract_indent(lines[line_pointa]) != indent:
-                break
-            line_pointa = self.interpret_for_block(
-                lines, indent=indent, line_pointa=line_pointa, lts=lts
-            )
-            if self.extract_indent(lines[line_pointa]) != indent:
-                break
+            if tmp_line_pointa != line_pointa:
+                line_pointa = tmp_line_pointa
+                continue
+            for target_func in interpret_targets:
+                tmp_line_pointa = target_func(
+                    lines=lines,
+                    return_tuples=return_tuples,
+                    indent=indent,
+                    line_pointa=line_pointa,
+                    lts=lts,
+                )
+                if tmp_line_pointa != line_pointa:
+                    line_pointa = tmp_line_pointa
+                    is_processed = True
+                    break
+            if is_processed:
+                continue
             if self.interpret_return(lines[line_pointa]) is not None:
                 return_tuples.append((self.current_state, lines[line_pointa].strip()))
                 line_pointa += 1
