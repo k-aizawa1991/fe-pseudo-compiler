@@ -289,6 +289,16 @@ class Interpreter:
         res = self.get_pattern_and_remain(self.name_pattern, line)
         if res:
             name, remain = res
+            if name in self.func_lts_map:
+                _, remain = self.get_pattern_and_remain(
+                    self.parenthesis_start_pattern,
+                    remain,
+                    exception.FuncArgNotFoundException,
+                )
+                if dry_run:
+                    return None, remain
+                # TODO 関数を実行する処理の追加
+                return None, remain
             if name not in self.name_val_map:
                 raise exception.NameNotDefinedException(name)
             if stack is not None:
@@ -683,7 +693,13 @@ class Interpreter:
         if not res:
             return line_pointa
         _, remain = res
-        func_name, _ = self.get_pattern_and_remain(
+        res = self.get_pattern_and_remain(
+            self.type_pattern,
+            remain,
+        )
+        if res:
+            return_type, remain = res
+        func_name, remain = self.get_pattern_and_remain(
             self.name_pattern,
             remain,
             exception.FuncNameException,
@@ -712,6 +728,32 @@ class Interpreter:
             func_lts.add_transition(end, "return", return_state)
         self.current_state = current_state
         return line_pointa
+
+    def process_func_args(self, line: str, line_num):
+        _, remain = self.get_pattern_and_remain(
+            self.parenthesis_start_pattern,
+            line,
+            exception.InvalidFuncDeclareException,
+            line_num=line_num,
+        )
+        res = self.get_pattern_and_remain(self.type_pattern, remain)
+        while res:
+            var_type, remain = res
+            _, remain = self.get_pattern_and_remain(
+                self.colon_pattern,
+                remain,
+                exception.InvalidFuncDeclareException,
+                line_num=line_num,
+            )
+            var_name, remain = self.get_pattern_and_remain(
+                self.name_pattern,
+                remain,
+                exception.NamePatternException,
+                line_num=line_num,
+            )
+            self.name_val_map[var_name] = None
+            self.name_type_map[var_name] = var_type
+            res = self.get_pattern_and_remain(self.type_pattern, remain)
 
     def interpret_process(
         self,
