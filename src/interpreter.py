@@ -697,13 +697,18 @@ class Interpreter:
         line_pointa, _ = self.process_nested_process(
             lines, line_pointa, return_tuples, lts=func_lts
         )
-        if len(return_tuples) != 0:
-            return_state = func_lts.create_state()
-            for source_state, label in return_tuples:
-                # 自動で作成されるendifやendfor, endwhileなどを削除
-                func_lts.clear_transition(source_state)
-                func_lts.add_transition(source_state, label, return_state)
-
+        return_state = func_lts.create_state()
+        for source_state, label in return_tuples:
+            # 自動で作成されるendifやendfor, endwhileなどを削除
+            func_lts.clear_transition(source_state)
+            func_lts.add_transition(source_state, label, return_state)
+        ends = [
+            end
+            for end in func_lts.transitions
+            if len(func_lts.transitions[end]) == 0 and end != return_state
+        ]
+        for end in ends:
+            func_lts.add_transition(end, "return", return_state)
         self.current_state = current_state
         return line_pointa
 
@@ -774,6 +779,26 @@ class Interpreter:
                 self.current_state = state
                 line_pointa += 1
         return line_pointa
+
+    def interpret_main_process(
+        self,
+        lines: List[str],
+    ):
+        return_tuples = []
+        line_pointa = self.interpret_process(lines, return_tuples)
+        return_state = self.lts.create_state()
+        for source_state, label in return_tuples:
+            # 自動で作成されるendifやendfor, endwhileなどを削除
+            self.lts.clear_transition(source_state)
+            self.lts.add_transition(source_state, label, return_state)
+        ends = [
+            end
+            for end in self.lts.transitions
+            if len(self.lts.transitions[end]) == 0 and end != return_state
+        ]
+        for end in ends:
+            self.lts.add_transition(end, "return", return_state)
+        return line_pointa        
 
     def check_indent(self, line: str, indent: str):
         if indent == "":
