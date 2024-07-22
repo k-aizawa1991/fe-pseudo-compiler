@@ -63,7 +63,14 @@ class InvalidFormulaException(PatternException):
 class InvalidParenthesisException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
-        self.message = f'"("に対応する")"が存在しません。:{self.args}'
+        self.message = f'"("に対応する")"が存在しません。:{self.arg}'
+
+
+class InvalidSquareBracketException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = '"["に対応する"]"が存在しません。'
+
 
 
 class InvalidIfBlockException(PatternException):
