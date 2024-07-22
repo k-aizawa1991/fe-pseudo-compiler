@@ -24,6 +24,17 @@ class FuncNameException(PatternException):
         self.message = f"[{self.arg}]は関数に利用できません。"
 
 
+class InvalidFuncDeclareException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"{self.arg}の関数定義が正しくありません。"
+
+
+class FuncArgNotFoundException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"[{self.arg}]に関数の引数が見つかりません。"
+
 
 class NamePatternException(PatternException):
     def __init__(self, arg="", line_num=None):
@@ -52,7 +63,25 @@ class InvalidFormulaException(PatternException):
 class InvalidParenthesisException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
-        self.message = f'"("に対応する")"が存在しません。:{self.args}'
+        self.message = f'"("に対応する")"が存在しません。:{self.arg}'
+
+
+class InvalidSquareBracketException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = '"["に対応する"]"が存在しません。'
+
+
+class InvalidArrayException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"{self.arg}は配列ではありません。"
+
+
+class InvalidArrayIndexException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = f"{self.arg}の配列外にアクセスしています。"
 
 
 class InvalidIfBlockException(PatternException):
@@ -98,4 +127,4 @@ class LtsException(Exception):
 
 class DoesNotExistException(LtsException):
     def __str__(self):
-        return f"{self.args}はLTSに存在しません。"
+        return f"{self.arg}はLTSに存在しません。"
