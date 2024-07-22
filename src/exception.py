@@ -27,7 +27,7 @@ class FuncNameException(PatternException):
 class InvalidFuncDeclareException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
-        self.message = f"{self.args}の関数定義が正しくありません。"
+        self.message = f"{self.arg}の関数定義が正しくありません。"
 
 
 class FuncArgNotFoundException(PatternException):
@@ -127,4 +127,4 @@ class LtsException(Exception):
 
 class DoesNotExistException(LtsException):
     def __str__(self):
-        return f"{self.args}はLTSに存在しません。"
+        return f"{self.arg}はLTSに存在しません。"
