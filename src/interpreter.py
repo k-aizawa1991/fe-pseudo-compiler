@@ -204,8 +204,7 @@ class Interpreter:
     }
 
     def __init__(self):
-        self.name_val_map = {}
-        self.name_type_map = {}
+
         self.lts = PseudoCompiledLTS()
         self.func_lts_map = {}
         self.current_state = self.lts.get_init_state()
@@ -260,13 +259,16 @@ class Interpreter:
         indent: str = "",
         dry_run: bool = False,
         line_num: str = None,
+        lts: PseudoCompiledLTS | None = None,
     ):
         if indent != "" and not self.check_indent(line, indent):
             raise exception.InvalidIndentException(line_num=line_num)
-        result, remain = self.interpret_arithmetic_operand(line, stack, dry_run=dry_run)
+        result, remain = self.interpret_arithmetic_operand(
+            line, stack, dry_run=dry_run, lts=lts
+        )
         while True:
             res = self.process_operator(
-                remain, stack, result, pended_op=pended_op, dry_run=dry_run
+                remain, stack, result, pended_op=pended_op, dry_run=dry_run, lts=lts
             )
             if not res:
                 break
@@ -281,6 +283,7 @@ class Interpreter:
         exception: exception.PatternException = None,
         pended_op: str = None,
         dry_run: bool = False,
+        lts: PseudoCompiledLTS | None = None,
     ):
         res = self.get_pattern_and_remain(self.operators_pattern, remain, exception)
         if not res:
@@ -290,12 +293,12 @@ class Interpreter:
             return None
         else:
             remain = tmp_remain
-        val2, tmp_remain = self.interpret_arithmetic_operand(remain, stack)
+        val2, tmp_remain = self.interpret_arithmetic_operand(remain, stack, lts=lts)
         # 優先度の高い演算子がある場合は先に計算
         res = self.get_pattern_and_remain(self.operators_pattern, tmp_remain)
         if res and res[0] in self.operator_priority_map[op]:
             val2, remain = self.interpret_arithmetic_formula(
-                remain, stack, pended_op=op
+                remain, stack, pended_op=op, lts=lts
             )
         else:
             remain = tmp_remain
@@ -307,13 +310,19 @@ class Interpreter:
         return self.OPERATOR_FUNC_MAP[op](val, val2), remain
 
     def interpret_arithmetic_operand(
-        self, line: str, stack: List[str] = None, dry_run: bool = False
+        self,
+        line: str,
+        stack: List[str] = None,
+        dry_run: bool = False,
+        lts: PseudoCompiledLTS | None = None,
     ):
+        if lts is None:
+            lts = self.lts
         res = self.get_pattern_and_remain(self.parenthesis_start_pattern, line)
         if res:
             _, remain = res
             val, remain = self.interpret_arithmetic_formula(
-                remain, stack, dry_run=dry_run
+                remain, stack, dry_run=dry_run, lts=lts
             )
             _, remain = self.get_pattern_and_remain(
                 self.parenthesis_end_pattern,
@@ -321,11 +330,17 @@ class Interpreter:
                 exception.InvalidParenthesisException,
             )
             return val, remain
-        return self.interpret_operand(line, stack, dry_run=dry_run)
+        return self.interpret_operand(line, stack, dry_run=dry_run, lts=lts)
 
     def interpret_operand(
-        self, line: str, stack: List[str] = None, dry_run: bool = False
+        self,
+        line: str,
+        stack: List[str] = None,
+        dry_run: bool = False,
+        lts: PseudoCompiledLTS | None = None,
     ):
+        if lts is None:
+            lts = self.lts
         res = self.get_pattern_and_remain(self.single_operators_pattern, line)
         if res:
             single_op, line = res
@@ -351,26 +366,26 @@ class Interpreter:
                     return None, remain
                 # TODO 関数を実行する処理の追加
                 return None, remain
-            if name not in self.name_val_map:
+            if name not in lts.name_val_map:
                 raise exception.NameNotDefinedException(name)
             if stack is not None:
                 stack.append(name)
             res = self.get_pattern_and_remain(self.square_bracket_start_pattern, remain)
             if res:
                 _, remain = res
-                if type(self.name_val_map[name]) is not list:
+                if type(lts.name_val_map[name]) is not list:
                     raise exception.InvalidArrayException(name)
-                index, remain = self.interpret_arithmetic_formula(remain)
+                index, remain = self.interpret_arithmetic_formula(remain, lts=lts)
                 _, remain = self.get_pattern_and_remain(
                     self.square_bracket_end_pattern,
                     remain,
                     exception.InvalidSquareBracketException,
                 )
-                if not int(index) < len(self.name_val_map[name]):
+                if int(index) > len(lts.name_val_map[name]):
                     raise exception.InvalidArrayIndexException(name)
-                return self.name_val_map[name][int(index)], remain
+                return lts.name_val_map[name][int(index)], remain
 
-            return self.name_val_map[name], remain
+            return lts.name_val_map[name], remain
         num_val, remain = self.get_pattern_and_remain(
             self.num_val_pattern, line, exception.InvalidFormulaException
         )
@@ -403,7 +418,16 @@ class Interpreter:
                 raise e(target)
         return target[matched.start() : matched.end()], target[matched.end() :].strip()
 
-    def process_var_assigns(self, remain, indent="", line_num=0, dry_run: bool = False):
+    def process_var_assigns(
+        self,
+        remain,
+        indent="",
+        line_num=0,
+        dry_run: bool = False,
+        lts: PseudoCompiledLTS | None = None,
+    ):
+        if lts is None:
+            lts = self.lts
         vars_list = []
         while True:
             name, remain = self.get_pattern_and_remain(
@@ -432,7 +456,7 @@ class Interpreter:
                         ):
                             break
                         val, remain = self.interpret_arithmetic_formula(
-                            remain, dry_run=dry_run
+                            remain, dry_run=dry_run, lts=lts
                         )
                         if not res:
                             break
@@ -443,7 +467,7 @@ class Interpreter:
                             _, remain = res
                         else:
                             break
-                    self.name_val_map[name] = array
+                    lts.name_val_map[name] = array
                     _, remain = self.get_pattern_and_remain(
                         self.square_bracket_end_pattern,
                         remain,
@@ -451,11 +475,11 @@ class Interpreter:
                     )
                 else:
                     val, remain = self.interpret_arithmetic_formula(
-                        remain, dry_run=dry_run
+                        remain, dry_run=dry_run, lts=lts
                     )
-                    self.name_val_map[name] = val
+                    lts.name_val_map[name] = val
             else:
-                self.name_val_map[name] = None
+                lts.name_val_map[name] = None
             res = self.get_pattern_and_remain(
                 self.comma_pattern, remain, indent=indent, line_num=line_num
             )
@@ -467,8 +491,15 @@ class Interpreter:
         return vars_list, remain
 
     def interpret_var_assign(
-        self, line: str, indent: str = "", line_num: int = 0, dry_run: bool = False
+        self,
+        line: str,
+        indent: str = "",
+        line_num: int = 0,
+        dry_run: bool = False,
+        lts: PseudoCompiledLTS | None = None,
     ):
+        if lts is None:
+            lts = self.lts
         res = self.get_pattern_and_remain(
             self.name_pattern,
             line,
@@ -483,13 +514,18 @@ class Interpreter:
         )
         if not res:
             return None
-        if var_name not in self.name_val_map:
+        if var_name not in lts.name_val_map:
             raise exception.NameNotDefinedException(var_name)
-        _, remain = self.process_var_assigns(line, dry_run=dry_run)
+        _, remain = self.process_var_assigns(line, dry_run=dry_run, lts=lts)
         return remain
 
     def interpret_return(
-        self, line: str, indent: str = "", line_num: int = 0, dry_run: bool = False
+        self,
+        line: str,
+        indent: str = "",
+        line_num: int = 0,
+        dry_run: bool = False,
+        lts: PseudoCompiledLTS | None = None,
     ):
         res = self.get_pattern_and_remain(
             self.return_pattern,
@@ -503,10 +539,19 @@ class Interpreter:
         if remain.strip() == "":
             return ""
         return self.interpret_arithmetic_formula(
-            remain, dry_run=dry_run, line_num=line_num
+            remain, dry_run=dry_run, line_num=line_num, lts=lts
         )
 
-    def interpret_var_declare(self, line, indent="", line_num=0, dry_run: bool = False):
+    def interpret_var_declare(
+        self,
+        line,
+        indent="",
+        line_num=0,
+        dry_run: bool = False,
+        lts: PseudoCompiledLTS | None = None,
+    ):
+        if lts is None:
+            lts = self.lts
         res = self.get_pattern_and_remain(
             self.type_pattern,
             line,
@@ -521,10 +566,10 @@ class Interpreter:
             remain,
             exception.DeclareException,
         )
-        vars, remain = self.process_var_assigns(remain, dry_run=dry_run)
+        vars, remain = self.process_var_assigns(remain, dry_run=dry_run, lts=lts)
 
         for var in vars:
-            self.name_type_map[var] = type_str
+            lts.name_type_map[var] = type_str
         return remain
 
     def interpret_if_block(
@@ -883,8 +928,9 @@ class Interpreter:
             line_num=line_pointa,
         )
         return_tuples: List[Tuple[str, str]] = []
-        self.process_func_args(remain, line_pointa)
+        
         func_lts = PseudoCompiledLTS()
+        self.process_func_args(remain, line_pointa, func_lts)
         self.func_lts_map[func_name] = func_lts
         current_state = self.current_state
         line_pointa, _ = self.process_nested_process(
@@ -906,7 +952,11 @@ class Interpreter:
         self.current_state = current_state
         return line_pointa
 
-    def process_func_args(self, line: str, line_num):
+    def process_func_args(
+        self, line: str, line_num, lts: PseudoCompiledLTS | None = None
+    ):
+        if lts is None:
+            lts = self.lts
         _, remain = self.get_pattern_and_remain(
             self.parenthesis_start_pattern,
             line,
@@ -928,8 +978,9 @@ class Interpreter:
                 exception.NamePatternException,
                 line_num=line_num,
             )
-            self.name_val_map[var_name] = None
-            self.name_type_map[var_name] = var_type
+            lts.arg_list.append(var_name)
+            lts.name_val_map[var_name] = None
+            lts.name_type_map[var_name] = var_type
             res = self.get_pattern_and_remain(self.type_pattern, remain)
 
     def interpret_process(
@@ -972,7 +1023,7 @@ class Interpreter:
                     break
             if is_processed:
                 continue
-            if self.interpret_return(lines[line_pointa]) is not None:
+            if self.interpret_return(lines[line_pointa], lts=lts) is not None:
                 lts.set_state_type(self.current_state, StateType.RETURN)
                 return_tuples.append((self.current_state, lines[line_pointa].strip()))
                 line_pointa += 1
