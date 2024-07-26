@@ -1109,3 +1109,69 @@ class Interpreter:
                 count += 1
             else:
                 return indent
+
+    def execute_lts(self, lts: PseudoCompiledLTS | None = None, vars: List[str] = []):
+        if lts is None:
+            lts = self.lts
+        if len(lts.arg_list) != len(vars):
+            raise exception.InvalidFuncCallException()
+        for arg, arg_val in zip(lts.arg_list, vars):
+            lts.name_val_map[arg] = arg_val
+        state = lts.init_state
+        val = None
+        while state is not None:
+            state, val = self.fire_transition(state, lts)
+        return val
+
+    def fire_transition(self, state: str, lts: PseudoCompiledLTS):
+        # 基本的に最初の遷移ラベルは使うのでここで取得してしまう
+        label = lts.get_transition_label(state)
+        print(state, "(", lts.get_state_type(state), "),", label, lts.name_val_map)
+        val = None
+        if lts.get_state_type(state) in [StateType.IF, StateType.WHILE]:
+            return self.get_transition_on_condition_state(state, lts)
+        if lts.get_state_type(state) == StateType.FOR:
+            name, from_val, to_val, increment_val = self.process_for_sentence(label)
+            print(
+                name,
+                "(",
+                lts.name_val_map[name],
+                "),",
+                from_val,
+                ",",
+                to_val,
+                ",",
+                increment_val,
+            )
+            if lts.name_val_map[name] is None:
+                lts.name_val_map[name] = from_val
+            elif lts.name_val_map[name] <= to_val:
+                lts.name_val_map[name] += increment_val
+            else:
+                lts.name_val_map[name] = None
+                label = "endfor"
+        if lts.get_state_type(state) == StateType.DECLARE:
+            self.interpret_var_declare(label, lts=lts)
+        if lts.get_state_type(state) == StateType.ASSIGN:
+            self.interpret_var_assign(label, lts=lts)
+        if lts.get_state_type(state) == StateType.FORMULA:
+            self.interpret_arithmetic_formula(label, lts=lts)
+        if lts.get_state_type(state) == StateType.RETURN:
+            val = None
+            res = self.interpret_return(label, lts=lts)
+            if res:
+                val = res[0]
+            return None, val
+        return lts.get_transition_state(state, label), val
+
+    def get_transition_on_condition_state(self, state: str, lts: PseudoCompiledLTS):
+        label_index = 0
+        label = lts.get_transition_label(state, index=label_index)
+        val, _ = self.interpret_arithmetic_formula(label, lts=lts)
+        while not val:
+            label_index += 1
+            label = lts.get_transition_label(state, index=label_index)
+            if label in ["else", "endwhile"]:
+                break
+            val, _ = self.interpret_arithmetic_formula(label, lts=lts)
+        return lts.get_transition_state(state, label), val
