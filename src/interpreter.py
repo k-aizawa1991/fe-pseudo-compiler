@@ -6,6 +6,41 @@ from src import exception
 from src.lts.lts import LabeledTransitionSystem
 
 
+class StateType:
+    UNDEFINED = 0
+    ASSIGN = 1
+    DECLARE = 2
+    FORMULA = 3
+    RETURN = 5
+    IF = 10
+    WHILE = 20
+    FOR = 30
+
+
+class PseudoCompiledLTS(LabeledTransitionSystem):
+    def __init__(
+        self,
+        init_state_name: str = None,
+    ):
+        super().__init__(init_state_name)
+        self.state_type_map: Dict[str, StateType] = {}
+        self.arg_list: List[str] = []
+        self.name_val_map: Dict[str, str | int | float | bool] = {}
+        self.name_type_map: Dict[str, str] = {}
+
+    def set_state_type(self, state: str, state_type: StateType):
+        if state not in self.transitions:
+            raise exception.DoesNotExistException(state)
+        self.state_type_map[state] = state_type
+
+    def get_state_type(self, state: str):
+        if state not in self.transitions:
+            raise exception.DoesNotExistException(state)
+        if state not in self.state_type_map:
+            return StateType.UNDEFINED
+        return self.state_type_map[state]
+
+
 class Interpreter:
     # <否定演算子>
     NOT_OPERATOR = "not"
@@ -166,7 +201,7 @@ class Interpreter:
     def __init__(self):
         self.name_val_map = {}
         self.name_type_map = {}
-        self.lts = LabeledTransitionSystem()
+        self.lts = PseudoCompiledLTS()
         self.func_lts_map = {}
         self.current_state = self.lts.get_init_state()
         self.complie_patterns()
@@ -491,7 +526,7 @@ class Interpreter:
         return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
-        lts: LabeledTransitionSystem | None = None,
+        lts: PseudoCompiledLTS | None = None,
     ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
@@ -570,7 +605,7 @@ class Interpreter:
         return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
-        lts: LabeledTransitionSystem | None = None,
+        lts: PseudoCompiledLTS | None = None,
     ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
@@ -617,7 +652,7 @@ class Interpreter:
         return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
-        lts: LabeledTransitionSystem | None = None,
+        lts: PseudoCompiledLTS | None = None,
     ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
@@ -659,7 +694,7 @@ class Interpreter:
         return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
-        lts: LabeledTransitionSystem | None = None,
+        lts: PseudoCompiledLTS | None = None,
     ):
         if len(lines) == 0 or (
             indent != "" and not self.check_indent(lines[line_pointa], indent)
@@ -760,7 +795,7 @@ class Interpreter:
         in_label: str | None = None,
         indent: str = "",
         start_state: str | None = None,
-        lts: LabeledTransitionSystem | None = None,
+        lts: PseudoCompiledLTS | None = None,
     ):
         child_indent = self.extract_indent(lines[line_pointa + 1])
         if len(indent) >= len(child_indent):
@@ -817,7 +852,7 @@ class Interpreter:
         )
         return_tuples: List[Tuple[str, str]] = []
         self.process_func_args(remain, line_pointa)
-        func_lts = LabeledTransitionSystem()
+        func_lts = PseudoCompiledLTS()
         self.func_lts_map[func_name] = func_lts
         current_state = self.current_state
         line_pointa, _ = self.process_nested_process(
@@ -870,7 +905,7 @@ class Interpreter:
         return_tuples: List[Tuple[str, str]],
         indent: str = "",
         line_pointa=0,
-        lts: LabeledTransitionSystem | None = None,
+        lts: PseudoCompiledLTS | None = None,
     ):
         interpret_targets = [
             self.interpret_if_block,
