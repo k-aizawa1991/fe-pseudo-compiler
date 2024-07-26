@@ -111,8 +111,13 @@ class Interpreter:
     ENDFOR = "^endfor$"
     FOR_OP1 = "を"
     FOR_OP2 = "から"
-    FOR_OP3 = "まで繰り返す"
-
+    FOR_OP3 = "まで"
+    FOR_OP4 = "繰り返す"
+    FOR_OP4_2 = "ずつ増やす"
+    LENGTH = "の要素数"
+    QUOTIENT = "の商"
+    REMAINDER = "の余り"
+    EXTRA_OPERATOR = f"{QUOTIENT}|{REMAINDER}"
     # <IF句>
     IF = "^if"
     ELSE = "^else"
@@ -221,6 +226,8 @@ class Interpreter:
         self.for_op1_pattern = re.compile(self.FOR_OP1)
         self.for_op2_pattern = re.compile(self.FOR_OP2)
         self.for_op3_pattern = re.compile(self.FOR_OP3)
+        self.for_op4_pattern = re.compile(self.FOR_OP4)
+        self.for_op4_2_pattern = re.compile(self.FOR_OP4_2)
 
         self.name_pattern = re.compile(self.NAME)
         self.num_val_pattern = re.compile(self.NUM_VAL)
@@ -742,10 +749,20 @@ class Interpreter:
 
         return line_pointa
 
-    def process_for_sentence(self, line: str, line_num: int):
+    def process_for_sentence(
+        self, line: str, line_num: int = 0, lts: PseudoCompiledLTS | None = None
+    ):
+        if lts is None:
+            lts = self.lts
+        _, remain = self.get_pattern_and_remain(
+            self.parenthesis_start_pattern,
+            line,
+            exception.InvalidForSentenceException,
+            line_num=line_num,
+        )
         name, remain = self.get_pattern_and_remain(
             self.name_pattern,
-            line,
+            remain,
             exception.InvalidForSentenceException,
             line_num=line_num,
         )
@@ -758,15 +775,10 @@ class Interpreter:
         res = self.get_pattern_and_remain(self.name_pattern, line)
         if res:
             from_val, remain = res
-            if from_val not in self.name_val_map:
+            if from_val not in lts.name_val_map:
                 raise exception.NameNotDefinedException(from_val, line_num=line_num)
         else:
-            from_val, remain = self.get_pattern_and_remain(
-                self.num_val_pattern,
-                remain,
-                exception.InvalidForSentenceException,
-                line_num=line_num,
-            )
+            from_val, remain = self.interpret_arithmetic_formula(remain)
         _, remain = self.get_pattern_and_remain(
             self.for_op2_pattern,
             remain,
@@ -776,22 +788,36 @@ class Interpreter:
         res = self.get_pattern_and_remain(self.name_pattern, line)
         if res:
             to_val, remain = res
-            if to_val not in self.name_val_map:
+            if to_val not in lts.name_val_map:
                 raise exception.NameNotDefinedException(to_val, line_num=line_num)
         else:
-            to_val, remain = self.get_pattern_and_remain(
-                self.num_val_pattern,
-                remain,
-                exception.InvalidForSentenceException,
-                line_num=line_num,
-            )
+            to_val, remain = self.interpret_arithmetic_formula(remain)
         _, remain = self.get_pattern_and_remain(
             self.for_op3_pattern,
             remain,
             exception.InvalidForSentenceException,
             line_num=line_num,
         )
-        return name, from_val, to_val
+        res = self.get_pattern_and_remain(self.for_op4_pattern, remain)
+        if res:
+            increment_val = 1
+        else:
+            increment_val, remain = self.interpret_arithmetic_formula(remain)
+            _, remain = self.get_pattern_and_remain(
+                self.for_op4_2_pattern,
+                remain,
+            )
+        _, remain = self.get_pattern_and_remain(
+            self.parenthesis_end_pattern,
+            remain,
+            exception.InvalidForSentenceException,
+            line_num=line_num,
+        )
+
+        try:
+            return name, int(from_val), int(to_val), increment_val
+        except ValueError:
+            raise exception.InvalidForSentenceException()
 
     def process_nested_process(
         self,
