@@ -541,6 +541,8 @@ class Interpreter:
         _, remain = res
         if lts is None:
             lts = self.lts
+        # 分岐を管理する状態にマーク
+        lts.set_state_type(self.current_state, StateType.IF)
         line_pointa, start_state = self.process_nested_process(
             lines,
             line_pointa,
@@ -620,6 +622,8 @@ class Interpreter:
         if lts is None:
             lts = self.lts
         _, remain = res
+        # 繰り返し条件を管理する状態にマーク
+        lts.set_state_type(self.current_state, StateType.WHILE)
         line_pointa, start_state = self.process_nested_process(
             lines,
             line_pointa,
@@ -680,6 +684,7 @@ class Interpreter:
             raise exception.InvalidDoWhileBlockException(line_num=line_pointa)
         line_pointa += 1
         _, remain = res
+        lts.set_state_type(self.current_state, StateType.WHILE)
         lts.add_transition(self.current_state, remain, start_state)
         endwhile_state = lts.create_state()
         lts.add_transition(self.current_state, "else", endwhile_state)
@@ -709,6 +714,7 @@ class Interpreter:
         if lts is None:
             lts = self.lts
         _, remain = res
+        lts.set_state_type(self.current_state, StateType.FOR)
         line_pointa, start_state = self.process_nested_process(
             lines,
             line_pointa,
@@ -869,6 +875,7 @@ class Interpreter:
             if len(func_lts.transitions[end]) == 0 and end != return_state
         ]
         for end in ends:
+            func_lts.set_state_type(end, StateType.RETURN)
             func_lts.add_transition(end, "return", return_state)
         self.current_state = current_state
         return line_pointa
@@ -940,33 +947,49 @@ class Interpreter:
             if is_processed:
                 continue
             if self.interpret_return(lines[line_pointa]) is not None:
+                lts.set_state_type(self.current_state, StateType.RETURN)
                 return_tuples.append((self.current_state, lines[line_pointa].strip()))
                 line_pointa += 1
                 break
-            if (
-                self.interpret_var_declare(
-                    lines[line_pointa],
-                    indent=indent,
-                    line_num=line_pointa,
-                    dry_run=True,
+            state_type = (
+                StateType.DECLARE
+                if (
+                    self.interpret_var_declare(
+                        lines[line_pointa],
+                        indent=indent,
+                        line_num=line_pointa,
+                        dry_run=True,
+                        lts=lts,
+                    )
+                    is not None
                 )
-                is not None
-                or self.interpret_var_assign(
-                    lines[line_pointa],
-                    indent=indent,
-                    line_num=line_pointa,
-                    dry_run=True,
+                else StateType.ASSIGN
+                if (
+                    self.interpret_var_assign(
+                        lines[line_pointa],
+                        indent=indent,
+                        line_num=line_pointa,
+                        dry_run=True,
+                        lts=lts,
+                    )
+                    is not None
                 )
-                is not None
-                or self.interpret_arithmetic_formula(
-                    lines[line_pointa],
-                    indent=indent,
-                    line_num=line_pointa,
-                    dry_run=True,
+                else StateType.FORMULA
+                if (
+                    self.interpret_arithmetic_formula(
+                        lines[line_pointa],
+                        indent=indent,
+                        line_num=line_pointa,
+                        dry_run=True,
+                        lts=lts,
+                    )
+                    is not None
                 )
-                is not None
-            ):
+                else None
+            )
+            if state_type is not None:
                 state = lts.create_state()
+                lts.set_state_type(self.current_state, state_type)
                 lts.add_transition(
                     self.current_state, lines[line_pointa].strip(), state
                 )
@@ -991,6 +1014,7 @@ class Interpreter:
             if len(self.lts.transitions[end]) == 0 and end != return_state
         ]
         for end in ends:
+            self.lts.set_state_type(end, StateType.RETURN)
             self.lts.add_transition(end, "return", return_state)
         return line_pointa
 
