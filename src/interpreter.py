@@ -1,6 +1,6 @@
 import re
 from re import Pattern
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from src import exception
 from src.lts.lts import LabeledTransitionSystem
