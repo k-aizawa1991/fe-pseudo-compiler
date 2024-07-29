@@ -357,14 +357,27 @@ class Interpreter:
         if res:
             name, remain = res
             if name in self.func_lts_map:
-                _, remain = self.get_pattern_and_remain(
+                res = self.get_pattern_and_remain(
                     self.parenthesis_start_pattern,
                     remain,
-                    exception.FuncArgNotFoundException,
+                    exception.InvalidFuncCallException,
                 )
-                if dry_run:
-                    return None, remain
-                # TODO 関数を実行する処理の追加
+                vars = []
+                while res:
+                    _, remain = res
+                    try:
+                        val, remain = self.interpret_arithmetic_formula(remain, lts=lts)
+                        vars.append(val)
+                    except Exception:
+                        break
+                    res = self.get_pattern_and_remain(self.comma_pattern, remain)
+                res = self.get_pattern_and_remain(
+                    self.parenthesis_end_pattern,
+                    remain,
+                    exception.InvalidFuncCallException,
+                )
+                if not dry_run:
+                    return self.execute_lts(self.func_lts_map[name], vars), remain
                 return None, remain
             if name not in lts.name_val_map:
                 raise exception.NameNotDefinedException(name)
