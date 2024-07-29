@@ -394,7 +394,9 @@ class Interpreter:
                     remain,
                     exception.InvalidSquareBracketException,
                 )
-                if int(index) > len(lts.name_val_map[name]):
+                if dry_run:
+                    return None, remain
+                if int(index) > len(lts.name_val_map[name]) or int(index) < 1:
                     raise exception.InvalidArrayIndexException(name)
                 return lts.name_val_map[name][int(index)], remain
 
