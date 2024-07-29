@@ -298,7 +298,7 @@ class Interpreter:
         res = self.get_pattern_and_remain(self.operators_pattern, tmp_remain)
         if res and res[0] in self.operator_priority_map[op]:
             val2, remain = self.interpret_arithmetic_formula(
-                remain, stack, pended_op=op, lts=lts
+                remain, stack, pended_op=op, lts=lts, dry_run=dry_run
             )
         else:
             remain = tmp_remain
@@ -1038,7 +1038,7 @@ class Interpreter:
                     break
             if is_processed:
                 continue
-            if self.interpret_return(lines[line_pointa], lts=lts) is not None:
+            if self.interpret_return(lines[line_pointa], lts=lts, dry_run=True) is not None:
                 lts.set_state_type(self.current_state, StateType.RETURN)
                 return_tuples.append((self.current_state, lines[line_pointa].strip()))
                 line_pointa += 1
@@ -1147,17 +1147,6 @@ class Interpreter:
             return self.get_transition_on_condition_state(state, lts)
         if lts.get_state_type(state) == StateType.FOR:
             name, from_val, to_val, increment_val = self.process_for_sentence(label)
-            print(
-                name,
-                "(",
-                lts.name_val_map[name],
-                "),",
-                from_val,
-                ",",
-                to_val,
-                ",",
-                increment_val,
-            )
             if lts.name_val_map[name] is None:
                 lts.name_val_map[name] = from_val
             elif lts.name_val_map[name] <= to_val:
