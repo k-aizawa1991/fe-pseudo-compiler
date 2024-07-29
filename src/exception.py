@@ -36,6 +36,12 @@ class FuncArgNotFoundException(PatternException):
         self.message = f"[{self.arg}]に関数の引数が見つかりません。"
 
 
+class InvalidFuncCallException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "関数の呼び出しが正しくありません。"
+
+
 class NamePatternException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
