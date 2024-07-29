@@ -111,7 +111,7 @@ class InvalidForBlockException(PatternException):
 class InvalidForSentenceException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
-        self.message = "for文の繰り返しの定義正しくありません。"
+        self.message = "for文の繰り返しの定義が正しくありません。"
 
 
 class InvalidIndentException(PatternException):
