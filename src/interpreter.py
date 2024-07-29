@@ -1149,7 +1149,7 @@ class Interpreter:
             name, from_val, to_val, increment_val = self.process_for_sentence(label)
             if lts.name_val_map[name] is None:
                 lts.name_val_map[name] = from_val
-            elif lts.name_val_map[name] <= to_val:
+            elif lts.name_val_map[name] + increment_val <= to_val:
                 lts.name_val_map[name] += increment_val
             else:
                 lts.name_val_map[name] = None
