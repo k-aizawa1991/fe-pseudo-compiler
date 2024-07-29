@@ -996,7 +996,17 @@ class Interpreter:
             lts.arg_list.append(var_name)
             lts.name_val_map[var_name] = None
             lts.name_type_map[var_name] = var_type
-            res = self.get_pattern_and_remain(self.type_pattern, remain)
+            res = self.get_pattern_and_remain(self.comma_pattern, remain)
+            if res:
+                _, remain = res
+                res = self.get_pattern_and_remain(self.type_pattern, remain)
+        _, remain = self.get_pattern_and_remain(
+            self.parenthesis_end_pattern,
+            remain,
+            exception.InvalidFuncDeclareException,
+            line_num=line_num,
+        )
+        return lts.arg_list, remain
 
     def interpret_process(
         self,
