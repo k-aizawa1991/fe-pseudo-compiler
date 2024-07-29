@@ -528,6 +528,8 @@ class Interpreter:
             self.assign_pattern, remain, line_num=line_num
         )
         if not res:
+            if len(remain) != 0 and not dry_run:
+                raise exception.InvalidVarAssignException(line_num=line_num)
             return None
         if var_name not in lts.name_val_map:
             raise exception.NameNotDefinedException(var_name)
