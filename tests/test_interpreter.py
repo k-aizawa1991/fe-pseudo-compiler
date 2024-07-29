@@ -966,3 +966,175 @@ def test_interpret_main_process():
     assert interpreter.lts.get_transition_state("S8", "else") == "S11"
     assert interpreter.lts.get_transition_state("S11", "endif") == "S12"
     assert interpreter.lts.get_transition_state("S12", "return") == "S13"
+
+
+def test_execute_lts_declare_assign_formula():
+    interpreter = Interpreter()
+
+    lines = [
+        "整数型: x, y←2, z←1+4, w ← 10 & 6, v ← 10 | 6",
+        "論理型: a, b",
+        "x← (1 ＋ 2) ÷ 3 × (4 mod 5)",
+        "w ≠ v",
+        "a← x ≧ y かつ y ≦ z",
+        "b← a または z ≠ 5",
+    ]
+    interpreter.interpret_main_process(lines)
+    interpreter.execute_lts()
+    assert interpreter.lts.name_val_map["x"] == 4
+    assert interpreter.lts.name_val_map["y"] == 2
+    assert interpreter.lts.name_val_map["z"] == 5
+    assert interpreter.lts.name_val_map["w"] == 2
+    assert interpreter.lts.name_val_map["v"] == 14
+    assert interpreter.lts.name_val_map["a"]
+    assert interpreter.lts.name_val_map["b"]
+
+
+def test_execute_lts_func():
+    interpreter = Interpreter()
+
+    lines = ["◯ test_gt(整数型:a, 整数型:b)", "    return a > b"]
+    interpreter.interpret_main_process(lines)
+    lts = interpreter.func_lts_map["test_gt"]
+    assert interpreter.execute_lts(lts, vars=[3, 2])
+    assert not interpreter.execute_lts(lts, vars=[2, 3])
+
+
+def test_execute_lts_func_invalid_call():
+    interpreter = Interpreter()
+
+    lines = ["◯ test_gt(整数型:a, 整数型:b)", "    return a > b"]
+    interpreter.interpret_main_process(lines)
+    lts = interpreter.func_lts_map["test_gt"]
+    with pytest.raises(exception.InvalidFuncCallException):
+        assert interpreter.execute_lts(lts, vars=[3])
+
+
+def test_execute_lts_func_call():
+    interpreter = Interpreter()
+
+    lines = [
+        "◯ test_gt(整数型:a, 整数型:b)",
+        "    return a > b",
+        "整数型: a←3, b←2",
+        "論理型: c←test_gt(a,b)",
+    ]
+    interpreter.interpret_main_process(lines)
+    interpreter.execute_lts()
+    assert interpreter.lts.name_val_map["c"]
+
+
+def test_execute_lts_if_process():
+    interpreter = Interpreter()
+
+    lines = [
+        "◯ test_func(整数型:x)",
+        "    if (xが5以上)",
+        "        x←x+1",
+        "    elseif (xが3以上)",
+        "        x←x+5",
+        "    else",
+        "        x←x+12",
+        "        return x",
+        "    endif",
+        "    x←x/2",
+        "    return x",
+    ]
+    interpreter.interpret_main_process(lines)
+    lts = interpreter.func_lts_map["test_func"]
+    interpreter.execute_lts(lts, vars=[6])
+    assert lts.name_val_map["x"] == 3.5
+    interpreter.execute_lts(lts, vars=[4])
+    assert lts.name_val_map["x"] == 4.5
+    interpreter.execute_lts(lts, vars=[2])
+    assert lts.name_val_map["x"] == 14
+
+
+def test_execute_lts_for_process():
+    interpreter = Interpreter()
+
+    lines = [
+        "整数型: a, x←0",
+        "for (aを1から10まで2ずつ増やす)",
+        "    x←x+a",
+        "endfor",
+        "return x",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    assert interpreter.execute_lts() == 25
+
+
+def test_execute_lts_for_process_var():
+    interpreter = Interpreter()
+
+    lines = [
+        "整数型: a, x←0, end←10, start← 2, increment←2",
+        "for (aをstartからendまでincrementずつ増やす)",
+        "    x←x+a",
+        "endfor",
+        "return x",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    assert interpreter.execute_lts() == 30
+
+
+def test_execute_lts_while_process():
+    interpreter = Interpreter()
+
+    lines = [
+        "整数型: x←0",
+        "while (x<10)",
+        "    x←x+1",
+        "endwhile",
+        "return x",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    assert interpreter.execute_lts() == 10
+
+
+def test_execute_lts_with_no_while_process():
+    interpreter = Interpreter()
+
+    lines = [
+        "整数型: x←11",
+        "while (x<10)",
+        "    x←x+1",
+        "endwhile",
+        "return x",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    assert interpreter.execute_lts() == 11
+
+
+def test_execute_lts_do_while_process():
+    interpreter = Interpreter()
+
+    lines = [
+        "整数型: x←0",
+        "do",
+        "    x←x+1",
+        "while (x<10)",
+        "return x",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    assert interpreter.execute_lts() == 10
+
+
+def test_execute_lts_do_while_with_one_process():
+    interpreter = Interpreter()
+
+    lines = [
+        "整数型: x←11",
+        "do",
+        "    x←x+1",
+        "while (x<10)",
+        "return x",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    assert interpreter.execute_lts() == 12
