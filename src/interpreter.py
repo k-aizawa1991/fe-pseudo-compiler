@@ -935,6 +935,9 @@ class Interpreter:
         )
         if res:
             return_type, remain = res
+            _, remain = self.get_pattern_and_remain(
+                self.colon_pattern, remain, exception.DeclareException
+            )
         func_name, remain = self.get_pattern_and_remain(
             self.name_pattern,
             remain,
@@ -943,7 +946,7 @@ class Interpreter:
             line_num=line_pointa,
         )
         return_tuples: List[Tuple[str, str]] = []
-        
+
         func_lts = PseudoCompiledLTS()
         self.process_func_args(remain, line_pointa, func_lts)
         self.func_lts_map[func_name] = func_lts
