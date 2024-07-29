@@ -418,7 +418,7 @@ class Interpreter:
         self,
         pattern: Pattern,
         target: str,
-        e: Exception = None,
+        e: Exception | None = None,
         indent: str = "",
         line_num: int = 0,
     ) -> Tuple[str, str]:
