@@ -905,7 +905,9 @@ class Interpreter:
         line_pointa = self.interpret_process(
             lines, return_tuples, child_indent, line_pointa + 1, lts=lts
         )
-        if not self.check_indent(lines[line_pointa], indent):
+        if line_pointa < len(lines) and not self.check_indent(
+            lines[line_pointa], indent
+        ):
             raise exception.InvalidIndentException(line_num=line_pointa)
         return line_pointa, start_state
 
