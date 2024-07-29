@@ -226,9 +226,9 @@ def test_process_var_assigns():
     actual_list, remain = interpreter.process_var_assigns("a←1+2+3, b, c←5")
 
     assert actual_list == ["a", "b", "c"]
-    assert interpreter.name_val_map["a"] == 6
-    assert interpreter.name_val_map["b"] is None
-    assert interpreter.name_val_map["c"] == 5
+    assert interpreter.lts.name_val_map["a"] == 6
+    assert interpreter.lts.name_val_map["b"] is None
+    assert interpreter.lts.name_val_map["c"] == 5
     assert remain == ""
 
 
@@ -236,9 +236,9 @@ def test_process_var_assigns_array():
     interpreter = Interpreter()
     actual_list, remain = interpreter.process_var_assigns("a←[1+2,3], b←[4,5*6], c←[]")
     assert actual_list == ["a", "b", "c"]
-    assert interpreter.name_val_map["a"] == [3, 3]
-    assert interpreter.name_val_map["b"] == [4, 30]
-    assert interpreter.name_val_map["c"] == []
+    assert interpreter.lts.name_val_map["a"] == [3, 3]
+    assert interpreter.lts.name_val_map["b"] == [4, 30]
+    assert interpreter.lts.name_val_map["c"] == []
     assert remain == ""
 
 
@@ -262,10 +262,10 @@ def test_process_var_assigns_array_access():
     actual_list, remain = interpreter.process_var_assigns("a←[1+2,3], b←[4,5*6], c←[]")
     actual_list, remain = interpreter.process_var_assigns("d←a[0]+b[1]")
     assert actual_list == ["d"]
-    assert interpreter.name_val_map["a"] == [3, 3]
-    assert interpreter.name_val_map["b"] == [4, 30]
-    assert interpreter.name_val_map["c"] == []
-    assert interpreter.name_val_map["d"] == 33
+    assert interpreter.lts.name_val_map["a"] == [3, 3]
+    assert interpreter.lts.name_val_map["b"] == [4, 30]
+    assert interpreter.lts.name_val_map["c"] == []
+    assert interpreter.lts.name_val_map["d"] == 33
     assert remain == ""
 
 
@@ -280,12 +280,12 @@ def test_process_var_assigns_array_invalid_access():
 def test_interpret_var_declare():
     interpreter = Interpreter()
     remain = interpreter.interpret_var_declare("整数型：a←1, b, c←1+2+3")
-    assert interpreter.name_val_map["a"] == 1
-    assert interpreter.name_val_map["b"] is None
-    assert interpreter.name_val_map["c"] == 6
-    assert interpreter.name_type_map["a"] == "整数型"
-    assert interpreter.name_type_map["b"] == "整数型"
-    assert interpreter.name_type_map["c"] == "整数型"
+    assert interpreter.lts.name_val_map["a"] == 1
+    assert interpreter.lts.name_val_map["b"] is None
+    assert interpreter.lts.name_val_map["c"] == 6
+    assert interpreter.lts.name_type_map["a"] == "整数型"
+    assert interpreter.lts.name_type_map["b"] == "整数型"
+    assert interpreter.lts.name_type_map["c"] == "整数型"
     remain == ""
 
 
@@ -302,13 +302,13 @@ def test_process_var_assigns_and_use():
     actual_list, remain = interpreter.process_var_assigns("a←1+2+3, b, c←5.4")
 
     assert actual_list == ["a", "b", "c"]
-    assert interpreter.name_val_map["a"] == 6
-    assert interpreter.name_val_map["b"] is None
-    assert interpreter.name_val_map["c"] == 5.4
+    assert interpreter.lts.name_val_map["a"] == 6
+    assert interpreter.lts.name_val_map["b"] is None
+    assert interpreter.lts.name_val_map["c"] == 5.4
     assert remain == ""
 
     interpreter.process_var_assigns("b←a + c * 2")
-    assert interpreter.name_val_map["b"] == 16.8
+    assert interpreter.lts.name_val_map["b"] == 16.8
     actual_val, remain = interpreter.interpret_arithmetic_formula("a+b+c")
     assert actual_val == 16.8 + 5.4 + 6
 
