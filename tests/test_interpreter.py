@@ -1138,3 +1138,24 @@ def test_execute_lts_do_while_with_one_process():
     interpreter = Interpreter()
     interpreter.interpret_main_process(lines)
     assert interpreter.execute_lts() == 12
+
+
+def test_interpret_sample1():
+    lines = [
+        "○整数型: fee(整数型: age)",
+        "    整数型: ret",
+        "    if (age が 3 以下)",
+        "        ret ← 100",
+        "    elseif (age が 9 以下)",
+        "        ret ← 300",
+        "    else",
+        "        ret ← 500",
+        "    endif",
+        "    return ret",
+        "整数型: ann ← 8",
+        "整数型: fee_value ← fee(ann) ",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    interpreter.execute_lts()
+    assert interpreter.lts.name_val_map["fee_value"] == 300

@@ -48,6 +48,12 @@ class Interpreter:
     MUL_DIV_MOD_OPERATOR = "\\*|/|mod|×|÷"
     # <和差演算子>
     ADD_SUB_OPERATOR = "\\+|-|＋|－"
+    # <日本語比較開始演算子>
+    COMPARE_START_OPERATOR_JP = "が"
+    # <日本語比較演算子>
+    COMPARE_OPERATOR_JP = (
+        "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?"
+    )
     # <比較演算子>
     COMPARE_OPERATOR = "≧|≦|=|＝|≠|＞|＜|<|>"
     # <ANDビット演算子>
@@ -138,7 +144,21 @@ class Interpreter:
     RETURN = "^return"
 
     LOGICAL_VAL_MAP = {"true": True, "false": False}
-
+    JP_OPERATOR_FUNC_MAP = {
+        "と等しい": lambda val1, val2: val1 == val2,
+        "に等しい": lambda val1, val2: val1 == val2,
+        "と等しくない": lambda val1, val2: val1 != val2,
+        "に等しくない": lambda val1, val2: val1 != val2,
+        "以上": lambda val1, val2: val1 >= val2,
+        "以下": lambda val1, val2: val1 <= val2,
+        "より大きい": lambda val1, val2: val1 > val2,
+        "より小さい": lambda val1, val2: val1 < val2,
+        "未満": lambda val1, val2: val1 < val2,
+    }
+    JP_SINGLE_OPERATOR_FUNC_MAP = {
+        "未定義": lambda val: val is None,
+        "未定義でない": lambda val: val is not None,
+    }
     OPERATOR_FUNC_MAP = {
         "+": lambda val1, val2: val1 + val2,
         "＋": lambda val1, val2: val1 + val2,
@@ -239,6 +259,10 @@ class Interpreter:
         self.operators_pattern = re.compile(self.OPERATORS)
         self.single_operators_pattern = re.compile(self.SINGLE_OPERATORS)
         self.logical_value_pattern = re.compile(self.LOGICAL_VALUE)
+        self.compare_start_operator_jp_pattern = re.compile(
+            self.COMPARE_START_OPERATOR_JP
+        )
+        self.compare_operator_jp_pattern = re.compile(self.COMPARE_OPERATOR_JP)
 
         self.parenthesis_start_pattern = re.compile(self.PALENTHESIS_START)
         self.parenthesis_end_pattern = re.compile(self.PALENTHESIS_END)
@@ -289,6 +313,30 @@ class Interpreter:
         dry_run: bool = False,
         lts: PseudoCompiledLTS | None = None,
     ):
+        res = self.get_pattern_and_remain(
+            self.compare_start_operator_jp_pattern, remain
+        )
+        if res:
+            _, remain = res
+            res = self.get_pattern_and_remain(self.compare_operator_jp_pattern, remain)
+            if res:
+                comp_op, remain = res
+                if comp_op not in self.JP_SINGLE_OPERATOR_FUNC_MAP:
+                    raise exception(remain)
+                if dry_run:
+                    return None, remain
+                return self.JP_SINGLE_OPERATOR_FUNC_MAP[comp_op](val), remain
+
+            val2, remain = self.interpret_arithmetic_operand(
+                remain, stack, exception, lts=lts
+            )
+            comp_op, remain = self.get_pattern_and_remain(
+                self.compare_operator_jp_pattern, remain, exception
+            )
+            if dry_run:
+                return None, remain
+            return self.JP_OPERATOR_FUNC_MAP[comp_op](val, val2), remain
+
         res = self.get_pattern_and_remain(self.operators_pattern, remain, exception)
         if not res:
             return None
