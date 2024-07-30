@@ -63,6 +63,8 @@ class Interpreter:
     PALENTHESIS_END = "^\\)"
     SQUARE_BRACKET_START = "^\\["
     SQUARE_BRACKET_END = "^\\]"
+    CURLY_BRACKET_START = "^\\{"
+    CURLY_BRACKET_END = "^\\}"
 
     # <論理値>::= true | false
     LOGICAL_VALUE = "true|false"
@@ -204,7 +206,6 @@ class Interpreter:
     }
 
     def __init__(self):
-
         self.lts = PseudoCompiledLTS()
         self.func_lts_map = {}
         self.current_state = self.lts.get_init_state()
@@ -243,6 +244,9 @@ class Interpreter:
         self.parenthesis_end_pattern = re.compile(self.PALENTHESIS_END)
         self.square_bracket_start_pattern = re.compile(self.SQUARE_BRACKET_START)
         self.square_bracket_end_pattern = re.compile(self.SQUARE_BRACKET_END)
+        self.curly_bracket_start_pattern = re.compile(self.CURLY_BRACKET_START)
+        self.curly_bracket_end_pattern = re.compile(self.CURLY_BRACKET_END)
+
         self.colon_pattern = re.compile(self.COLON)
         self.comma_pattern = re.compile(self.COMMA)
         self.assign_pattern = re.compile(self.ASSIGN)
@@ -460,14 +464,14 @@ class Interpreter:
                 _, remain = res
                 # 配列の代入は独立して実施
                 res = self.get_pattern_and_remain(
-                    self.square_bracket_start_pattern, remain
+                    self.curly_bracket_start_pattern, remain
                 )
                 if res:
                     _, remain = res
                     array = []
                     while True:
                         if self.get_pattern_and_remain(
-                            self.square_bracket_end_pattern, remain
+                            self.curly_bracket_end_pattern, remain
                         ):
                             break
                         val, remain = self.interpret_arithmetic_formula(
@@ -484,9 +488,9 @@ class Interpreter:
                             break
                     lts.name_val_map[name] = array
                     _, remain = self.get_pattern_and_remain(
-                        self.square_bracket_end_pattern,
+                        self.curly_bracket_end_pattern,
                         remain,
-                        exception.InvalidSquareBracketException,
+                        exception.InvalidCurlyBracketException,
                     )
                 else:
                     val, remain = self.interpret_arithmetic_formula(
