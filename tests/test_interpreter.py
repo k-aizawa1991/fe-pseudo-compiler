@@ -212,13 +212,39 @@ def test_interpret_formula_or_and():
 def test_interpret_formula_bit():
     interpreter = Interpreter()
     actual_val, remain = interpreter.interpret_arithmetic_formula("3 | 12")
-    actual_val == 15
+    assert actual_val == 15
     assert remain == ""
 
     interpreter = Interpreter()
     actual_val, remain = interpreter.interpret_arithmetic_formula("3 & 12")
-    actual_val == 0
+    assert actual_val == 0
     assert remain == ""
+
+
+def test_interpret_formula_jp_com_op():
+    interpreter = Interpreter()
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1と等しい")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 2に等しい")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 2と等しくない")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1に等しくない")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1以上")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1以下")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1より大きい")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1より小さい")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1未満")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義でない")
+    assert actual_val
 
 
 def test_process_var_assigns():
@@ -1138,3 +1164,24 @@ def test_execute_lts_do_while_with_one_process():
     interpreter = Interpreter()
     interpreter.interpret_main_process(lines)
     assert interpreter.execute_lts() == 12
+
+
+def test_interpret_sample1():
+    lines = [
+        "○整数型: fee(整数型: age)",
+        "    整数型: ret",
+        "    if (age が 3 以下)",
+        "        ret ← 100",
+        "    elseif (age が 9 以下)",
+        "        ret ← 300",
+        "    else",
+        "        ret ← 500",
+        "    endif",
+        "    return ret",
+        "整数型: ann ← 8",
+        "整数型: fee_value ← fee(ann) ",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    interpreter.execute_lts()
+    assert interpreter.lts.name_val_map["fee_value"] == 300
