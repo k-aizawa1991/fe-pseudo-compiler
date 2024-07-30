@@ -174,7 +174,7 @@ class Interpreter:
         "＞": lambda val1, val2: val1 > val2,
         ">": lambda val1, val2: val1 > val2,
         "＜": lambda val1, val2: val1 < val2,
-        "<": lambda val1, val2: val1 > val2,
+        "<": lambda val1, val2: val1 < val2,
         "≧": lambda val1, val2: val1 >= val2,
         "≦": lambda val1, val2: val1 <= val2,
         "≠": lambda val1, val2: val1 != val2,
