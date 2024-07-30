@@ -111,7 +111,7 @@ class Interpreter:
     # <引数宣言>
     FUNC_ARG = f"{TYPE[1:]}:[ ]*{NAME}"
     # <関数句>
-    FUNC_START = "^◯"
+    FUNC_START = "^[◯|○]"
     FUNC_ARGS = f"^\\(({FUNC_ARG}(,[ ]*{FUNC_ARG})*)?\\)"
 
     # <FOR句>
