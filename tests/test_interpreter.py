@@ -293,7 +293,7 @@ def test_interpret_var_assign():
     interpreter = Interpreter()
     remain = interpreter.interpret_var_declare("整数型：a←1")
     remain = interpreter.interpret_var_assign("a←a+2+3")
-    assert interpreter.name_val_map["a"] == 6
+    assert interpreter.lts.name_val_map["a"] == 6
     assert remain == ""
 
 
