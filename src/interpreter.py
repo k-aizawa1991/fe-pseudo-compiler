@@ -265,6 +265,7 @@ class Interpreter:
             self.COMPARE_START_OPERATOR_JP
         )
         self.compare_operator_jp_pattern = re.compile(self.COMPARE_OPERATOR_JP)
+        self.length_pattern = re.compile(self.LENGTH)
         self.extra_operator_pattern = re.compile(self.EXTRA_OPERATOR)
 
         self.parenthesis_start_pattern = re.compile(self.PALENTHESIS_START)
@@ -458,6 +459,14 @@ class Interpreter:
                 if int(index) > len(lts.name_val_map[name]) or int(index) < 1:
                     raise exception.InvalidArrayIndexException(name)
                 return lts.name_val_map[name][int(index) - 1], remain
+            res = self.get_pattern_and_remain(self.length_pattern, remain)
+            if res:
+                _, remain = res
+                if type(lts.name_val_map[name]) is not list:
+                    raise exception.InvalidArrayException(name)
+                if dry_run:
+                    return None, remain
+                return len(lts.name_val_map[name]), remain
 
             return lts.name_val_map[name], remain
         num_val, remain = self.get_pattern_and_remain(
@@ -1114,7 +1123,10 @@ class Interpreter:
                     break
             if is_processed:
                 continue
-            if self.interpret_return(lines[line_pointa], lts=lts, dry_run=True) is not None:
+            if (
+                self.interpret_return(lines[line_pointa], lts=lts, dry_run=True)
+                is not None
+            ):
                 lts.set_state_type(self.current_state, StateType.RETURN)
                 return_tuples.append((self.current_state, lines[line_pointa].strip()))
                 line_pointa += 1
