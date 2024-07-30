@@ -111,7 +111,7 @@ class Interpreter:
     # <引数宣言>
     FUNC_ARG = f"{TYPE[1:]}:[ ]*{NAME}"
     # <関数句>
-    FUNC_START = "^◯"
+    FUNC_START = "^[◯|○]"
     FUNC_ARGS = f"^\\(({FUNC_ARG}(,[ ]*{FUNC_ARG})*)?\\)"
 
     # <FOR句>
@@ -174,7 +174,7 @@ class Interpreter:
         "＞": lambda val1, val2: val1 > val2,
         ">": lambda val1, val2: val1 > val2,
         "＜": lambda val1, val2: val1 < val2,
-        "<": lambda val1, val2: val1 > val2,
+        "<": lambda val1, val2: val1 < val2,
         "≧": lambda val1, val2: val1 >= val2,
         "≦": lambda val1, val2: val1 <= val2,
         "≠": lambda val1, val2: val1 != val2,
@@ -182,6 +182,8 @@ class Interpreter:
         "＝": lambda val1, val2: val1 == val2,
         "かつ": lambda val1, val2: val1 and val2,
         "または": lambda val1, val2: val1 or val2,
+        "の商": lambda val1, val2: int(val1 / val2),
+        "の余り": lambda val1, val2: val1 % val2,
     }
     SINGLE_OPERATOR_FUNC_MAP = {
         "not": lambda val: not val,
@@ -263,6 +265,8 @@ class Interpreter:
             self.COMPARE_START_OPERATOR_JP
         )
         self.compare_operator_jp_pattern = re.compile(self.COMPARE_OPERATOR_JP)
+        self.length_pattern = re.compile(self.LENGTH)
+        self.extra_operator_pattern = re.compile(self.EXTRA_OPERATOR)
 
         self.parenthesis_start_pattern = re.compile(self.PALENTHESIS_START)
         self.parenthesis_end_pattern = re.compile(self.PALENTHESIS_END)
@@ -346,6 +350,10 @@ class Interpreter:
         else:
             remain = tmp_remain
         val2, tmp_remain = self.interpret_arithmetic_operand(remain, stack, lts=lts)
+        # 割り算の商や余りという語句が存在する場合は個々で処理
+        res = self.get_pattern_and_remain(self.extra_operator_pattern, tmp_remain)
+        if res:
+            op, tmp_remain = res
         # 優先度の高い演算子がある場合は先に計算
         res = self.get_pattern_and_remain(self.operators_pattern, tmp_remain)
         if res and res[0] in self.operator_priority_map[op]:
@@ -451,6 +459,14 @@ class Interpreter:
                 if int(index) > len(lts.name_val_map[name]) or int(index) < 1:
                     raise exception.InvalidArrayIndexException(name)
                 return lts.name_val_map[name][int(index) - 1], remain
+            res = self.get_pattern_and_remain(self.length_pattern, remain)
+            if res:
+                _, remain = res
+                if type(lts.name_val_map[name]) is not list:
+                    raise exception.InvalidArrayException(name)
+                if dry_run:
+                    return None, remain
+                return len(lts.name_val_map[name]), remain
 
             return lts.name_val_map[name], remain
         num_val, remain = self.get_pattern_and_remain(
@@ -1107,7 +1123,10 @@ class Interpreter:
                     break
             if is_processed:
                 continue
-            if self.interpret_return(lines[line_pointa], lts=lts, dry_run=True) is not None:
+            if (
+                self.interpret_return(lines[line_pointa], lts=lts, dry_run=True)
+                is not None
+            ):
                 lts.set_state_type(self.current_state, StateType.RETURN)
                 return_tuples.append((self.current_state, lines[line_pointa].strip()))
                 line_pointa += 1

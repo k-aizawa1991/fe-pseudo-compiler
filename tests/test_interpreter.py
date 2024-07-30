@@ -244,7 +244,21 @@ def test_interpret_formula_jp_com_op():
     actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義")
     assert not actual_val
     actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義でない")
-    assert actual_val
+
+
+def test_interpret_formula_jp_extra_op():
+    interpreter = Interpreter()
+    actual_val, _ = interpreter.interpret_arithmetic_formula("3 ÷ 2の商")
+    assert actual_val == 1
+    actual_val, _ = interpreter.interpret_arithmetic_formula("3 ÷ 2の余り")
+    assert actual_val == 1
+
+
+def test_interpret_formula_jp_length_op():
+    interpreter = Interpreter()
+    interpreter.interpret_var_declare("整数型の配列: a ← {1, 2, 3}")
+    actual_val, _ = interpreter.interpret_arithmetic_formula("aの要素数")
+    assert actual_val == 3
 
 
 def test_process_var_assigns():
