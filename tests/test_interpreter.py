@@ -234,7 +234,7 @@ def test_process_var_assigns():
 
 def test_process_var_assigns_array():
     interpreter = Interpreter()
-    actual_list, remain = interpreter.process_var_assigns("a←[1+2,3], b←[4,5*6], c←[]")
+    actual_list, remain = interpreter.process_var_assigns("a←{1+2,3}, b←{4,5*6}, c←{}")
     assert actual_list == ["a", "b", "c"]
     assert interpreter.lts.name_val_map["a"] == [3, 3]
     assert interpreter.lts.name_val_map["b"] == [4, 30]
@@ -244,9 +244,9 @@ def test_process_var_assigns_array():
 
 def test_process_var_assigns_invalid_square_bracet():
     interpreter = Interpreter()
-    with pytest.raises(exception.InvalidSquareBracketException) as e:
-        interpreter.process_var_assigns("a←[1+2,3")
-    assert str(e.value) == '"["に対応する"]"が存在しません。'
+    with pytest.raises(exception.InvalidCurlyBracketException) as e:
+        interpreter.process_var_assigns("a←{1+2,3")
+    assert str(e.value) == '"{"に対応する"}"が存在しません。'
 
 
 def test_process_var_assigns_invalid_array():
@@ -259,7 +259,7 @@ def test_process_var_assigns_invalid_array():
 
 def test_process_var_assigns_array_access():
     interpreter = Interpreter()
-    actual_list, remain = interpreter.process_var_assigns("a←[1+2,3], b←[4,5*6], c←[]")
+    actual_list, remain = interpreter.process_var_assigns("a←{1+2,3}, b←{4,5*6}, c←{}")
     actual_list, remain = interpreter.process_var_assigns("d←a[0]+b[1]")
     assert actual_list == ["d"]
     assert interpreter.lts.name_val_map["a"] == [3, 3]
@@ -271,7 +271,7 @@ def test_process_var_assigns_array_access():
 
 def test_process_var_assigns_array_invalid_access():
     interpreter = Interpreter()
-    actual_list, remain = interpreter.process_var_assigns("a←[1+2,3], b←[4,5*6], c←[]")
+    actual_list, remain = interpreter.process_var_assigns("a←{1+2,3}, b←{4,5*6}, c←{}")
     with pytest.raises(exception.InvalidArrayIndexException) as e:
         interpreter.process_var_assigns("d←a[0]+b[2]")
     assert str(e.value) == "bの配列外にアクセスしています。"
