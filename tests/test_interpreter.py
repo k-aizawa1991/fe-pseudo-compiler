@@ -212,12 +212,12 @@ def test_interpret_formula_or_and():
 def test_interpret_formula_bit():
     interpreter = Interpreter()
     actual_val, remain = interpreter.interpret_arithmetic_formula("3 | 12")
-    actual_val == 15
+    assert actual_val == 15
     assert remain == ""
 
     interpreter = Interpreter()
     actual_val, remain = interpreter.interpret_arithmetic_formula("3 & 12")
-    actual_val == 0
+    assert actual_val == 0
     assert remain == ""
 
 
