@@ -221,6 +221,32 @@ def test_interpret_formula_bit():
     assert remain == ""
 
 
+def test_interpret_formula_jp_com_op():
+    interpreter = Interpreter()
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1と等しい")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 2に等しい")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 2と等しくない")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1に等しくない")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1以上")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1以下")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1より大きい")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1より小さい")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1未満")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義でない")
+    assert actual_val
+
+
 def test_process_var_assigns():
     interpreter = Interpreter()
     actual_list, remain = interpreter.process_var_assigns("a←1+2+3, b, c←5")
