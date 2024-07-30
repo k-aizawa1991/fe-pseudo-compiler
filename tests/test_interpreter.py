@@ -254,6 +254,12 @@ def test_interpret_formula_jp_extra_op():
     assert actual_val == 1
 
 
+def test_interpret_formula_jp_length_op():
+    interpreter = Interpreter()
+    interpreter.interpret_var_declare("整数型の配列: a ← {1, 2, 3}")
+    actual_val, _ = interpreter.interpret_arithmetic_formula("aの要素数")
+    assert actual_val == 3
+
 
 def test_process_var_assigns():
     interpreter = Interpreter()
