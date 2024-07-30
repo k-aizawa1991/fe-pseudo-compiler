@@ -402,7 +402,7 @@ class Interpreter:
                     return None, remain
                 if int(index) > len(lts.name_val_map[name]) or int(index) < 1:
                     raise exception.InvalidArrayIndexException(name)
-                return lts.name_val_map[name][int(index)], remain
+                return lts.name_val_map[name][int(index) - 1], remain
 
             return lts.name_val_map[name], remain
         num_val, remain = self.get_pattern_and_remain(
