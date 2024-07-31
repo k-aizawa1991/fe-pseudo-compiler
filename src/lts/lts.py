@@ -57,6 +57,16 @@ class LabeledTransitionSystem:
             raise exception.DoesNotExistException(target)
         return self.backwards[target]
 
+    def get_transition_label(self, state:str, index=0):
+        if state not in self.transitions:
+            raise exception.DoesNotExistException(state)
+        # 存在しないインデックスへのアクセスはNoneを返却する
+        if not index < len(self.transitions[state]):
+            return None
+        # WARNING: keysの順序は本来不定なのでif文のように順序付きを扱うのは不適？
+        key = list(self.transitions[state].keys())[index]
+        return key
+
     def __str__(self):
         lts_str = ""
         for state in self.transitions:
