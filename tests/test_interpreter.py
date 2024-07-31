@@ -1220,3 +1220,22 @@ def test_interpret_sample1():
     interpreter.interpret_main_process(lines)
     interpreter.execute_lts()
     assert interpreter.lts.name_val_map["fee_value"] == 300
+
+
+def test_interpret_sample2():
+    lines = [
+        "整数型の配列: array ← {1, 2, 3, 4, 5}",
+        "整数型: right, left",
+        "整数型: tmp",
+        "for (left を 1 から (arrayの要素数 ÷ 2 の商) まで 1 ずつ増やす)",
+        "    right ← array の要素数 － left ＋ 1",
+        "    tmp ← array[right]",
+        "    array[right] ← array[left]",
+        "    array[left] ← tmp",
+        "endfor",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    print(interpreter.lts)
+    interpreter.execute_lts()
+    assert interpreter.lts.name_val_map["array"] == [5, 4, 3, 2, 1]
