@@ -52,7 +52,7 @@ class LabeledTransitionSystem:
             raise exception.DoesNotExistException(f"{source}から{label}による遷移")
         return self.transitions[source][label]
 
-    def get_backwards(self, target):
+    def get_backwards(self, target:str):
         if target not in self.backwards:
             raise exception.DoesNotExistException(target)
         return self.backwards[target]
