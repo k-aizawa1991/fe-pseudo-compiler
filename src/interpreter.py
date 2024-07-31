@@ -1310,7 +1310,6 @@ class Interpreter:
     def fire_transition(self, state: str, lts: PseudoCompiledLTS):
         # 基本的に最初の遷移ラベルは使うのでここで取得してしまう
         label = lts.get_transition_label(state)
-        print(state, "(", lts.get_state_type(state), "),", label, lts.name_val_map)
         val = None
         if lts.get_state_type(state) in [StateType.IF, StateType.WHILE]:
             return self.get_transition_on_condition_state(state, lts)
