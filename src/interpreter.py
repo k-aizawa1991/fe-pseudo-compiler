@@ -665,13 +665,16 @@ class Interpreter:
         res = self.get_pattern_and_remain(
             self.square_bracket_start_pattern, remain, line_num=line_num
         )
-        if res:
+        while res:
             _, remain = res
             _, remain = self.interpret_arithmetic_formula(remain)
             _, remain = self.get_pattern_and_remain(
                 self.square_bracket_end_pattern,
                 remain,
                 exception.InvalidSquareBracketException,
+            )
+            res = self.get_pattern_and_remain(
+                self.square_bracket_start_pattern, remain, line_num=line_num
             )
         res = self.get_pattern_and_remain(
             self.assign_pattern, remain, line_num=line_num
