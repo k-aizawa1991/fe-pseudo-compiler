@@ -306,7 +306,20 @@ def test_process_var_assigns_array_access():
     assert interpreter.lts.name_val_map["b"] == [4, 30]
     assert interpreter.lts.name_val_map["c"] == []
     assert interpreter.lts.name_val_map["d"] == 33
+    actual_list, remain = interpreter.process_var_assigns("b[1]←a[1]+b[2]")
+    assert interpreter.lts.name_val_map["b"] == [33, 30]
+
     assert remain == ""
+
+
+def test_process_var_assigns_n_array():
+    interpreter = Interpreter()
+    interpreter.process_var_assigns("a←{{1,2},{3}}, b←{{{4,5},{6,7}},{{8},{9}}}, c←{}")
+    assert interpreter.lts.name_val_map["a"] == [[1, 2], [3]]
+    assert interpreter.lts.name_val_map["b"] == [[[4, 5], [6, 7]], [[8], [9]]]
+    assert interpreter.lts.name_val_map["c"] == []
+    interpreter.process_var_assigns("a[1][2]←a[1][1]+b[1][2][2]")
+    assert interpreter.lts.name_val_map["a"] == [[1, 8], [3]]
 
 
 def test_process_var_assigns_array_invalid_access():
@@ -327,6 +340,14 @@ def test_interpret_var_declare():
     assert interpreter.lts.name_type_map["b"] == "整数型"
     assert interpreter.lts.name_type_map["c"] == "整数型"
     remain == ""
+
+
+def test_interpret_var_declare_array():
+    interpreter = Interpreter()
+    interpreter.interpret_var_declare("整数型の二次元配列: a ← {{0,1,2},{3,4,5},{6,7,8}}")
+    interpreter.interpret_var_declare("整数型配列の配列： b ← {{8,7,6},{5,4,3},{2,1,0}}")
+    assert interpreter.lts.name_val_map["a"] == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    assert interpreter.lts.name_val_map["b"] == [[8, 7, 6], [5, 4, 3], [2, 1, 0]]
 
 
 def test_interpret_var_assign():
