@@ -132,6 +132,12 @@ class InvalidIndentException(PatternException):
         self.message = "インデントに誤りがあります。"
 
 
+class InvalidVarAssignException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "代入文が正しくありません。"
+
+
 class LtsException(Exception):
     def __init__(self, arg=""):
         self.arg = arg
