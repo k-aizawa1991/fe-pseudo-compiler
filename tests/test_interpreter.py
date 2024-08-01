@@ -306,7 +306,32 @@ def test_process_var_assigns_array_access():
     assert interpreter.lts.name_val_map["b"] == [4, 30]
     assert interpreter.lts.name_val_map["c"] == []
     assert interpreter.lts.name_val_map["d"] == 33
+    actual_list, remain = interpreter.process_var_assigns("b[1]←a[1]+b[2]")
+    assert interpreter.lts.name_val_map["b"] == [33, 30]
+
     assert remain == ""
+
+
+def test_process_var_assigns_n_array():
+    interpreter = Interpreter()
+    interpreter.process_var_assigns("a←{{1,2},{3}}, b←{{{4,5},{6,7}},{{8},{9}}}, c←{}")
+    assert interpreter.lts.name_val_map["a"] == [[1, 2], [3]]
+    assert interpreter.lts.name_val_map["b"] == [[[4, 5], [6, 7]], [[8], [9]]]
+    assert interpreter.lts.name_val_map["c"] == []
+    interpreter.process_var_assigns("a[1][2]←a[1][1]+b[1][2][2]")
+    assert interpreter.lts.name_val_map["a"] == [[1, 8], [3]]
+
+
+def test_interpret_var_declare_n_array():
+    interpreter = Interpreter()
+    interpreter.interpret_var_declare("整数型の二次元配列: a←{{1,2},{3}}")
+    interpreter.interpret_var_declare("整数型の三次元配列: b←{{{4,5},{6,7}},{{8},{9}}}")
+    interpreter.interpret_var_declare("整数型配列: c←{}")
+    assert interpreter.lts.name_val_map["a"] == [[1, 2], [3]]
+    assert interpreter.lts.name_val_map["b"] == [[[4, 5], [6, 7]], [[8], [9]]]
+    assert interpreter.lts.name_val_map["c"] == []
+    interpreter.interpret_var_assign("a[1][2]←a[1][1]+b[1][2][2]")
+    assert interpreter.lts.name_val_map["a"] == [[1, 8], [3]]
 
 
 def test_process_var_assigns_array_invalid_access():
@@ -329,12 +354,53 @@ def test_interpret_var_declare():
     remain == ""
 
 
+def test_interpret_var_declare_array():
+    interpreter = Interpreter()
+    interpreter.interpret_var_declare(
+        "整数型の二次元配列: a ← {{0,1,2},{3,4,5},{6,7,8}}"
+    )
+    interpreter.interpret_var_declare(
+        "整数型配列の配列： b ← {{8,7,6},{5,4,3},{2,1,0}}"
+    )
+    assert interpreter.lts.name_val_map["a"] == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    assert interpreter.lts.name_val_map["b"] == [[8, 7, 6], [5, 4, 3], [2, 1, 0]]
+
+
 def test_interpret_var_assign():
     interpreter = Interpreter()
     remain = interpreter.interpret_var_declare("整数型：a←1")
     remain = interpreter.interpret_var_assign("a←a+2+3")
     assert interpreter.lts.name_val_map["a"] == 6
     assert remain == ""
+
+
+def test_interpret_var_assign_array_append():
+    interpreter = Interpreter()
+    # TODO 配列への値の追加のテスト
+    interpreter.interpret_var_declare("整数型の配列：a← {}")
+    interpreter.interpret_var_declare("整数型配列の配列：b ← {{},{}}")
+    interpreter.interpret_var_assign("aの末尾 に 1を追加する")
+    interpreter.interpret_var_assign("b[1]の末尾 に {1,2,3}を追加する")
+    print(interpreter.lts.name_val_map)
+    assert interpreter.lts.name_val_map["a"] == [1]
+    assert interpreter.lts.name_val_map["b"] == [[[1, 2, 3]], []]
+
+
+def test_interpret_var_assign_invalid_array_append():
+    interpreter = Interpreter()
+    # TODO 配列への値の追加のテスト
+    interpreter.interpret_var_declare("整数型の配列：a← {}")
+    with pytest.raises(exception.InvalidArrayAppendException) as e:
+        interpreter.interpret_var_assign("aの末尾 に 1を追加")
+    assert str(e.value) == "配列への値の追加文が正しくありません。"
+
+def test_interpret_var_assign_append_invalid_var():
+    interpreter = Interpreter()
+    # TODO 配列への値の追加のテスト
+    interpreter.interpret_var_declare("整数型：a← 3")
+    with pytest.raises(exception.InvalidArrayException) as e:
+        interpreter.interpret_var_assign("aの末尾 に 1を追加する")
+    assert str(e.value) == "aは配列ではありません。"
 
 
 def test_process_var_assigns_and_use():
@@ -1199,3 +1265,22 @@ def test_interpret_sample1():
     interpreter.interpret_main_process(lines)
     interpreter.execute_lts()
     assert interpreter.lts.name_val_map["fee_value"] == 300
+
+
+def test_interpret_sample2():
+    lines = [
+        "整数型の配列: array ← {1, 2, 3, 4, 5}",
+        "整数型: right, left",
+        "整数型: tmp",
+        "for (left を 1 から (arrayの要素数 ÷ 2 の商) まで 1 ずつ増やす)",
+        "    right ← array の要素数 － left ＋ 1",
+        "    tmp ← array[right]",
+        "    array[right] ← array[left]",
+        "    array[left] ← tmp",
+        "endfor",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    print(interpreter.lts)
+    interpreter.execute_lts()
+    assert interpreter.lts.name_val_map["array"] == [5, 4, 3, 2, 1]
