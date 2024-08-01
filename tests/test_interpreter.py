@@ -333,6 +333,7 @@ def test_interpret_var_declare_n_array():
     interpreter.interpret_var_assign("a[1][2]←a[1][1]+b[1][2][2]")
     assert interpreter.lts.name_val_map["a"] == [[1, 8], [3]]
 
+
 def test_process_var_assigns_array_invalid_access():
     interpreter = Interpreter()
     actual_list, remain = interpreter.process_var_assigns("a←{1+2,3}, b←{4,5*6}, c←{}")
@@ -371,6 +372,35 @@ def test_interpret_var_assign():
     remain = interpreter.interpret_var_assign("a←a+2+3")
     assert interpreter.lts.name_val_map["a"] == 6
     assert remain == ""
+
+
+def test_interpret_var_assign_array_append():
+    interpreter = Interpreter()
+    # TODO 配列への値の追加のテスト
+    interpreter.interpret_var_declare("整数型の配列：a← {}")
+    interpreter.interpret_var_declare("整数型配列の配列：b ← {{},{}}")
+    interpreter.interpret_var_assign("aの末尾 に 1を追加する")
+    interpreter.interpret_var_assign("b[1]の末尾 に {1,2,3}を追加する")
+    print(interpreter.lts.name_val_map)
+    assert interpreter.lts.name_val_map["a"] == [1]
+    assert interpreter.lts.name_val_map["b"] == [[[1, 2, 3]], []]
+
+
+def test_interpret_var_assign_invalid_array_append():
+    interpreter = Interpreter()
+    # TODO 配列への値の追加のテスト
+    interpreter.interpret_var_declare("整数型の配列：a← {}")
+    with pytest.raises(exception.InvalidArrayAppendException) as e:
+        interpreter.interpret_var_assign("aの末尾 に 1を追加")
+    assert str(e.value) == "配列への値の追加文が正しくありません。"
+
+def test_interpret_var_assign_append_invalid_var():
+    interpreter = Interpreter()
+    # TODO 配列への値の追加のテスト
+    interpreter.interpret_var_declare("整数型：a← 3")
+    with pytest.raises(exception.InvalidArrayException) as e:
+        interpreter.interpret_var_assign("aの末尾 に 1を追加する")
+    assert str(e.value) == "aは配列ではありません。"
 
 
 def test_process_var_assigns_and_use():

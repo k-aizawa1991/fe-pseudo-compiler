@@ -54,6 +54,9 @@ class Interpreter:
     COMPARE_OPERATOR_JP = (
         "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?"
     )
+    ARRAY_APPEND_START = "の末尾\\s*に\\s*"
+    ARRAY_APPEND_END = "を追加する"
+    VALUE = "の値"
     # <比較演算子>
     COMPARE_OPERATOR = "≧|≦|=|＝|≠|＞|＜|<|>"
     # <ANDビット演算子>
@@ -278,6 +281,9 @@ class Interpreter:
         self.compare_operator_jp_pattern = re.compile(self.COMPARE_OPERATOR_JP)
         self.length_pattern = re.compile(self.LENGTH)
         self.extra_operator_pattern = re.compile(self.EXTRA_OPERATOR)
+        self.array_append_start_pattern = re.compile(self.ARRAY_APPEND_START)
+        self.array_append_end_pattern = re.compile(self.ARRAY_APPEND_END)
+        self.value_pattern = re.compile(self.VALUE)
 
         self.parenthesis_start_pattern = re.compile(self.PALENTHESIS_START)
         self.parenthesis_end_pattern = re.compile(self.PALENTHESIS_END)
@@ -467,7 +473,9 @@ class Interpreter:
                     exception.InvalidSquareBracketException,
                 )
                 idx_list.append(index)
-                res = self.get_pattern_and_remain(self.square_bracket_start_pattern, remain)
+                res = self.get_pattern_and_remain(
+                    self.square_bracket_start_pattern, remain
+                )
             if len(idx_list) > 0:
                 if dry_run:
                     return None, remain
@@ -554,10 +562,47 @@ class Interpreter:
                 res = self.get_pattern_and_remain(
                     self.square_bracket_start_pattern, remain
                 )
-
             vars_list.append(name)
             res = self.get_pattern_and_remain(
-                self.assign_pattern, remain, indent=indent, line_num=line_num
+                self.array_append_start_pattern,
+                remain,
+            )
+            if res:
+                _, remain = res
+                res = self.get_pattern_and_remain(
+                    self.curly_bracket_start_pattern, remain
+                )
+                if res:
+                    val, remain = self.process_array_definition(
+                        remain, lts, dry_run=dry_run
+                    )
+                else:
+                    val, remain = self.interpret_arithmetic_formula(
+                        remain, dry_run=dry_run, lts=lts
+                    )
+                res = self.get_pattern_and_remain(self.value_pattern, remain)
+                if res:
+                    _, remain = res
+                _, remain = self.get_pattern_and_remain(
+                    self.array_append_end_pattern,
+                    remain,
+                    exception.InvalidArrayAppendException,
+                )
+                print("hoge", val, dry_run)
+                if not dry_run:
+                    if type(lts.name_val_map[name]) is not list:
+                        raise exception.InvalidArrayException(name)
+                    if name in array_idx_dict:
+                        target = self.get_target_array(lts, name, array_idx_dict[name])
+                        target[int(array_idx_dict[name][-1] - 1)].append(val)
+                        print(target)
+                    else:
+                        lts.name_val_map[name].append(val)
+                        print(lts.name_val_map[name])
+                return [name], remain
+
+            res = self.get_pattern_and_remain(
+                self.assign_pattern, remain, line_num=line_num
             )
             if res:
                 _, remain = res
@@ -677,14 +722,34 @@ class Interpreter:
                 self.square_bracket_start_pattern, remain, line_num=line_num
             )
         res = self.get_pattern_and_remain(
-            self.assign_pattern, remain, line_num=line_num
+            self.array_append_start_pattern, remain, line_num=line_num
         )
-        if not res:
-            if len(remain) != 0 and not dry_run:
-                raise exception.InvalidVarAssignException(line_num=line_num)
-            return None
-        if var_name not in lts.name_val_map:
-            raise exception.NameNotDefinedException(var_name)
+        if res:
+            _, remain = res
+            res = self.get_pattern_and_remain(self.curly_bracket_start_pattern, remain)
+            if res:
+                _, remain = self.process_array_definition(remain, lts, dry_run=dry_run)
+            else:
+                _, remain = self.interpret_arithmetic_formula(remain)
+            res = self.get_pattern_and_remain(self.value_pattern, remain)
+            if res:
+                _, remain = res
+            _, remain = self.get_pattern_and_remain(
+                self.array_append_end_pattern,
+                remain,
+                exception.InvalidArrayAppendException,
+                line_num=line_num,
+            )
+        else:
+            res = self.get_pattern_and_remain(
+                self.assign_pattern, remain, line_num=line_num
+            )
+            if not res:
+                if len(remain) != 0 and not dry_run:
+                    raise exception.InvalidVarAssignException(line_num=line_num)
+                return None
+            if var_name not in lts.name_val_map:
+                raise exception.NameNotDefinedException(var_name)
         _, remain = self.process_var_assigns(line, dry_run=dry_run, lts=lts)
         return remain
 

@@ -126,6 +126,12 @@ class InvalidForSentenceException(PatternException):
         self.message = "for文の繰り返しの定義が正しくありません。"
 
 
+class InvalidArrayAppendException(PatternException):
+    def __init__(self, arg="", line_num=None):
+        super().__init__(arg, line_num)
+        self.message = "配列への値の追加文が正しくありません。"
+
+
 class InvalidIndentException(PatternException):
     def __init__(self, arg="", line_num=None):
         super().__init__(arg, line_num)
