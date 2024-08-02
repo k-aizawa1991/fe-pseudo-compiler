@@ -394,6 +394,7 @@ def test_interpret_var_assign_invalid_array_append():
         interpreter.interpret_var_assign("aの末尾 に 1を追加")
     assert str(e.value) == "配列への値の追加文が正しくありません。"
 
+
 def test_interpret_var_assign_append_invalid_var():
     interpreter = Interpreter()
     # TODO 配列への値の追加のテスト
@@ -1284,3 +1285,41 @@ def test_interpret_sample2():
     print(interpreter.lts)
     interpreter.execute_lts()
     assert interpreter.lts.name_val_map["array"] == [5, 4, 3, 2, 1]
+
+
+def test_interpret_sample3():
+    lines = [
+        "○整数型配列の配列: transformSparseMatrix(整数型の二次元配列: matrix)",
+        "    整数型: i, j",
+        "    整数型配列の配列: sparseMatrix",
+        "    sparseMatrix ← {{}, {}, {}}",
+        "    for (i を 1 から matrixの行数 まで 1 ずつ増やす)",
+        "        for (j を 1 から matrixの列数 まで 1 ずつ増やす)",
+        "            if (matrix[i][j] が 0 でない)",
+        "                sparseMatrix[1]の末尾 に iの値 を追加する",
+        "                sparseMatrix[2]の末尾 に jの値 を追加する",
+        "                sparseMatrix[3]の末尾 に matrix[i][j]の値 を追加する",
+        "            endif",
+        "        endfor",
+        "    endfor",
+        "    return sparseMatrix",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    print(interpreter.func_lts_map["transformSparseMatrix"])
+    test_list = [
+        [3, 0, 0, 0, 0],
+        [0, 2, 2, 0, 0],
+        [0, 0, 0, 1, 3],
+        [0, 0, 0, 2, 0],
+        [0, 0, 0, 0, 1],
+    ]
+    actual_val = interpreter.execute_lts(
+        interpreter.func_lts_map["transformSparseMatrix"], vars=[test_list]
+    )
+    print(interpreter.func_lts_map["transformSparseMatrix"].name_val_map)
+    assert actual_val == [
+        [1, 2, 2, 3, 3, 4, 5],
+        [1, 2, 3, 4, 5, 4, 5],
+        [3, 2, 2, 1, 3, 2, 1],
+    ]
