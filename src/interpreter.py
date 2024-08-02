@@ -464,7 +464,7 @@ class Interpreter:
             idx_list = []
             while res:
                 _, remain = res
-                if type(lts.name_val_map[name]) is not list:
+                if type(lts.name_val_map[name]) is not list and not dry_run:
                     raise exception.InvalidArrayException(name)
                 index, remain = self.interpret_arithmetic_formula(remain, lts=lts)
                 _, remain = self.get_pattern_and_remain(
@@ -550,7 +550,9 @@ class Interpreter:
             res = self.get_pattern_and_remain(self.square_bracket_start_pattern, remain)
             while res:
                 _, remain = res
-                idx, remain = self.interpret_arithmetic_formula(remain)
+                idx, remain = self.interpret_arithmetic_formula(
+                    remain, lts=lts, dry_run=dry_run
+                )
                 if name not in array_idx_dict:
                     array_idx_dict[name] = []
                 array_idx_dict[name].append(idx)
@@ -712,7 +714,7 @@ class Interpreter:
         )
         while res:
             _, remain = res
-            _, remain = self.interpret_arithmetic_formula(remain)
+            _, remain = self.interpret_arithmetic_formula(remain, lts=lts, dry_run=dry_run)
             _, remain = self.get_pattern_and_remain(
                 self.square_bracket_end_pattern,
                 remain,
@@ -730,7 +732,9 @@ class Interpreter:
             if res:
                 _, remain = self.process_array_definition(remain, lts, dry_run=dry_run)
             else:
-                _, remain = self.interpret_arithmetic_formula(remain)
+                _, remain = self.interpret_arithmetic_formula(
+                    remain, lts=lts, dry_run=dry_run
+                )
             res = self.get_pattern_and_remain(self.value_pattern, remain)
             if res:
                 _, remain = res
@@ -1057,7 +1061,7 @@ class Interpreter:
             if from_val not in lts.name_val_map:
                 raise exception.NameNotDefinedException(from_val, line_num=line_num)
         else:
-            from_val, remain = self.interpret_arithmetic_formula(remain)
+            from_val, remain = self.interpret_arithmetic_formula(remain, lts=lts)
         _, remain = self.get_pattern_and_remain(
             self.for_op2_pattern,
             remain,
@@ -1070,7 +1074,7 @@ class Interpreter:
             if to_val not in lts.name_val_map:
                 raise exception.NameNotDefinedException(to_val, line_num=line_num)
         else:
-            to_val, remain = self.interpret_arithmetic_formula(remain)
+            to_val, remain = self.interpret_arithmetic_formula(remain, lts=lts)
         _, remain = self.get_pattern_and_remain(
             self.for_op3_pattern,
             remain,
@@ -1081,7 +1085,7 @@ class Interpreter:
         if res:
             increment_val = 1
         else:
-            increment_val, remain = self.interpret_arithmetic_formula(remain)
+            increment_val, remain = self.interpret_arithmetic_formula(remain, lts=lts)
             _, remain = self.get_pattern_and_remain(
                 self.for_op4_2_pattern,
                 remain,
@@ -1382,7 +1386,7 @@ class Interpreter:
         if lts.get_state_type(state) in [StateType.IF, StateType.WHILE]:
             return self.get_transition_on_condition_state(state, lts)
         if lts.get_state_type(state) == StateType.FOR:
-            name, from_val, to_val, increment_val = self.process_for_sentence(label)
+            name, from_val, to_val, increment_val = self.process_for_sentence(label, lts=lts)
             if lts.name_val_map[name] is None:
                 lts.name_val_map[name] = from_val
             elif lts.name_val_map[name] + increment_val <= to_val:
