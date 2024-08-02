@@ -244,6 +244,16 @@ def test_interpret_formula_jp_com_op():
     actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義")
     assert not actual_val
     actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義でない")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1 でない")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1 である")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("4 が 2 で割り切れる")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("4 が 3 で割り切れる")
+    assert not actual_val
+
 
 
 def test_interpret_formula_jp_extra_op():
@@ -256,10 +266,13 @@ def test_interpret_formula_jp_extra_op():
 
 def test_interpret_formula_jp_length_op():
     interpreter = Interpreter()
-    interpreter.interpret_var_declare("整数型の配列: a ← {1, 2, 3}")
+    interpreter.interpret_var_declare("整数型の配列: a ← {{1, 2},{3, 4},{5, 6}}")
     actual_val, _ = interpreter.interpret_arithmetic_formula("aの要素数")
     assert actual_val == 3
-
+    actual_val, _ = interpreter.interpret_arithmetic_formula("aの行数")
+    assert actual_val == 3
+    actual_val, _ = interpreter.interpret_arithmetic_formula("aの列数")
+    assert actual_val == 2
 
 def test_process_var_assigns():
     interpreter = Interpreter()
@@ -393,6 +406,7 @@ def test_interpret_var_assign_invalid_array_append():
     with pytest.raises(exception.InvalidArrayAppendException) as e:
         interpreter.interpret_var_assign("aの末尾 に 1を追加")
     assert str(e.value) == "配列への値の追加文が正しくありません。"
+
 
 def test_interpret_var_assign_append_invalid_var():
     interpreter = Interpreter()
@@ -1284,3 +1298,41 @@ def test_interpret_sample2():
     print(interpreter.lts)
     interpreter.execute_lts()
     assert interpreter.lts.name_val_map["array"] == [5, 4, 3, 2, 1]
+
+
+def test_interpret_sample3():
+    lines = [
+        "○整数型配列の配列: transformSparseMatrix(整数型の二次元配列: matrix)",
+        "    整数型: i, j",
+        "    整数型配列の配列: sparseMatrix",
+        "    sparseMatrix ← {{}, {}, {}}",
+        "    for (i を 1 から matrixの行数 まで 1 ずつ増やす)",
+        "        for (j を 1 から matrixの列数 まで 1 ずつ増やす)",
+        "            if (matrix[i][j] が 0 でない)",
+        "                sparseMatrix[1]の末尾 に iの値 を追加する",
+        "                sparseMatrix[2]の末尾 に jの値 を追加する",
+        "                sparseMatrix[3]の末尾 に matrix[i][j]の値 を追加する",
+        "            endif",
+        "        endfor",
+        "    endfor",
+        "    return sparseMatrix",
+    ]
+    interpreter = Interpreter()
+    interpreter.interpret_main_process(lines)
+    print(interpreter.func_lts_map["transformSparseMatrix"])
+    test_list = [
+        [3, 0, 0, 0, 0],
+        [0, 2, 2, 0, 0],
+        [0, 0, 0, 1, 3],
+        [0, 0, 0, 2, 0],
+        [0, 0, 0, 0, 1],
+    ]
+    actual_val = interpreter.execute_lts(
+        interpreter.func_lts_map["transformSparseMatrix"], vars=[test_list]
+    )
+    print(interpreter.func_lts_map["transformSparseMatrix"].name_val_map)
+    assert actual_val == [
+        [1, 2, 2, 3, 3, 4, 5],
+        [1, 2, 3, 4, 5, 4, 5],
+        [3, 2, 2, 1, 3, 2, 1],
+    ]
