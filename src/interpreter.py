@@ -52,7 +52,7 @@ class Interpreter:
     COMPARE_START_OPERATOR_JP = "が"
     # <日本語比較演算子>
     COMPARE_OPERATOR_JP = (
-        "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?|でない|である"
+        "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?|でない|である|で割り切れる"
     )
     ARRAY_APPEND_START = "の末尾\\s*に\\s*"
     ARRAY_APPEND_END = "を追加する"
@@ -171,6 +171,7 @@ class Interpreter:
         "未満": lambda val1, val2: val1 < val2,
         "でない": lambda val1, val2: val1 is not val2,
         "である": lambda val1, val2: val1 is val2,
+        "で割り切れる": lambda val1, val2: (val1 % val2) == 0
     }
     JP_SINGLE_OPERATOR_FUNC_MAP = {
         "未定義": lambda val: val is None,
