@@ -590,17 +590,14 @@ class Interpreter:
                     remain,
                     exception.InvalidArrayAppendException,
                 )
-                print("hoge", val, dry_run)
                 if not dry_run:
                     if type(lts.name_val_map[name]) is not list:
                         raise exception.InvalidArrayException(name)
                     if name in array_idx_dict:
                         target = self.get_target_array(lts, name, array_idx_dict[name])
                         target[int(array_idx_dict[name][-1] - 1)].append(val)
-                        print(target)
                     else:
                         lts.name_val_map[name].append(val)
-                        print(lts.name_val_map[name])
                 return [name], remain
 
             res = self.get_pattern_and_remain(
