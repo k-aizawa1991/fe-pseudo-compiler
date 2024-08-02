@@ -52,7 +52,7 @@ class Interpreter:
     COMPARE_START_OPERATOR_JP = "が"
     # <日本語比較演算子>
     COMPARE_OPERATOR_JP = (
-        "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?"
+        "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?|でない|である"
     )
     ARRAY_APPEND_START = "の末尾\\s*に\\s*"
     ARRAY_APPEND_END = "を追加する"
@@ -136,7 +136,8 @@ class Interpreter:
     FOR_OP3 = "まで"
     FOR_OP4 = "繰り返す"
     FOR_OP4_2 = "ずつ増やす"
-    LENGTH = "の要素数"
+    LENGTH = "(の要素数)|(の行数)|(の列数)"
+    ROW_LENGTH = "の列数"
     QUOTIENT = "の商"
     REMAINDER = "の余り"
     EXTRA_OPERATOR = f"{QUOTIENT}|{REMAINDER}"
@@ -168,6 +169,8 @@ class Interpreter:
         "より大きい": lambda val1, val2: val1 > val2,
         "より小さい": lambda val1, val2: val1 < val2,
         "未満": lambda val1, val2: val1 < val2,
+        "でない": lambda val1, val2: val1 is not val2,
+        "である": lambda val1, val2: val1 is val2,
     }
     JP_SINGLE_OPERATOR_FUNC_MAP = {
         "未定義": lambda val: val is None,
@@ -487,11 +490,13 @@ class Interpreter:
                 return return_target, remain
             res = self.get_pattern_and_remain(self.length_pattern, remain)
             if res:
-                _, remain = res
+                length_name, remain = res
                 if type(lts.name_val_map[name]) is not list:
                     raise exception.InvalidArrayException(name)
                 if dry_run:
                     return None, remain
+                if length_name == self.ROW_LENGTH:
+                    return len(lts.name_val_map[name][0]), remain
                 return len(lts.name_val_map[name]), remain
 
             return lts.name_val_map[name], remain
