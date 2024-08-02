@@ -244,6 +244,16 @@ def test_interpret_formula_jp_com_op():
     actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義")
     assert not actual_val
     actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 未定義でない")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1 でない")
+    assert not actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("1 が 1 である")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("4 が 2 で割り切れる")
+    assert actual_val
+    actual_val, _ = interpreter.interpret_arithmetic_formula("4 が 3 で割り切れる")
+    assert not actual_val
+
 
 
 def test_interpret_formula_jp_extra_op():
@@ -256,10 +266,13 @@ def test_interpret_formula_jp_extra_op():
 
 def test_interpret_formula_jp_length_op():
     interpreter = Interpreter()
-    interpreter.interpret_var_declare("整数型の配列: a ← {1, 2, 3}")
+    interpreter.interpret_var_declare("整数型の配列: a ← {{1, 2},{3, 4},{5, 6}}")
     actual_val, _ = interpreter.interpret_arithmetic_formula("aの要素数")
     assert actual_val == 3
-
+    actual_val, _ = interpreter.interpret_arithmetic_formula("aの行数")
+    assert actual_val == 3
+    actual_val, _ = interpreter.interpret_arithmetic_formula("aの列数")
+    assert actual_val == 2
 
 def test_process_var_assigns():
     interpreter = Interpreter()
