@@ -4,7 +4,7 @@ from src import exception
 
 
 class LabeledTransitionSystem:
-    def __init__(self, init_state_name: str = None):
+    def __init__(self, init_state_name: str | None = None):
         if init_state_name is None:
             init_state_name = "S0"
         init_state = init_state_name
@@ -16,7 +16,7 @@ class LabeledTransitionSystem:
     def get_init_state(self):
         return self.init_state
 
-    def create_state(self, name: str = None):
+    def create_state(self, name: str | None = None):
         if name is None:
             num = len(self.transitions)
             while f"S{num}" in self.transitions:
@@ -52,12 +52,12 @@ class LabeledTransitionSystem:
             raise exception.DoesNotExistException(f"{source}から{label}による遷移")
         return self.transitions[source][label]
 
-    def get_backwards(self, target:str):
+    def get_backwards(self, target: str):
         if target not in self.backwards:
             raise exception.DoesNotExistException(target)
         return self.backwards[target]
 
-    def get_transition_label(self, state:str, index=0):
+    def get_transition_label(self, state: str, index=0):
         if state not in self.transitions:
             raise exception.DoesNotExistException(state)
         # 存在しないインデックスへのアクセスはNoneを返却する
@@ -74,3 +74,17 @@ class LabeledTransitionSystem:
             for transition in self.transitions[state]:
                 lts_str += f"  {str(transition)}-> {str(self.transitions[state][transition])} \n"
         return lts_str
+
+    def get_lts_as_dict(self):
+        lts_dict = {"init_state": self.init_state, "states": {}}
+        for state in self.transitions:
+            lts_dict["states"][state] = {}
+            for label in self.transitions[state]:
+                lts_dict["states"][state][label] = self.transitions[state][label]
+        return lts_dict
+
+    def set_lts_as_dict(self, lts_dict):
+        self.init_state = lts_dict["init_state"]
+        for source in lts_dict["states"]:
+            for label in lts_dict["states"][source]:
+                self.add_transition(source, label, lts_dict["states"][source][label])

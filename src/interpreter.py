@@ -21,12 +21,29 @@ class PseudoCompiledLTS(LabeledTransitionSystem):
     def __init__(
         self,
         init_state_name: str = None,
+        data: Dict[
+            str,
+            str
+            | Dict[
+                str,
+                int
+                | float
+                | str
+                | bool
+                | List[int | float | str | bool]
+                | Dict[str, str | float | str | bool | List[int | float | str | bool]],
+            ],
+        ]
+        | None = None,
     ):
         super().__init__(init_state_name)
         self.state_type_map: Dict[str, StateType] = {}
         self.arg_list: List[str] = []
         self.name_val_map: Dict[str, str | int | float | bool] = {}
         self.name_type_map: Dict[str, str] = {}
+        self.func_results: Dict[str, str | int | float | bool] = {}
+        if data is not None:
+            self.set_lts_as_dict(data)
 
     def set_state_type(self, state: str, state_type: StateType):
         if state not in self.transitions:
@@ -40,6 +57,23 @@ class PseudoCompiledLTS(LabeledTransitionSystem):
             return StateType.UNDEFINED
         return self.state_type_map[state]
 
+    def get_lts_as_dict(self):
+        lts_dict = super().get_lts_as_dict()
+        lts_dict["state_type_map"] = self.state_type_map
+        lts_dict["arg_list"] = self.arg_list
+        lts_dict["name_val_map"] = self.name_val_map
+        lts_dict["name_type_map"] = self.name_type_map
+        lts_dict["func_results"] = self.func_results
+        return lts_dict
+
+    def set_lts_as_dict(self, lts_dict):
+        super().set_lts_as_dict(lts_dict)
+        self.state_type_map = lts_dict["state_type_map"]
+        self.arg_list = lts_dict["arg_list"]
+        self.name_val_map = lts_dict["name_val_map"]
+        self.name_type_map = lts_dict["name_type_map"]
+        self.func_results = lts_dict["func_results"]
+
 
 class Interpreter:
     # <否定演算子>
@@ -51,9 +85,7 @@ class Interpreter:
     # <日本語比較開始演算子>
     COMPARE_START_OPERATOR_JP = "が"
     # <日本語比較演算子>
-    COMPARE_OPERATOR_JP = (
-        "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?|でない|である|で割り切れる"
-    )
+    COMPARE_OPERATOR_JP = "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?|でない|である|で割り切れる"
     ARRAY_APPEND_START = "の末尾\\s*に\\s*"
     ARRAY_APPEND_END = "を追加する"
     VALUE = "の値"
@@ -171,7 +203,7 @@ class Interpreter:
         "未満": lambda val1, val2: val1 < val2,
         "でない": lambda val1, val2: val1 is not val2,
         "である": lambda val1, val2: val1 is val2,
-        "で割り切れる": lambda val1, val2: (val1 % val2) == 0
+        "で割り切れる": lambda val1, val2: (val1 % val2) == 0,
     }
     JP_SINGLE_OPERATOR_FUNC_MAP = {
         "未定義": lambda val: val is None,
@@ -247,7 +279,8 @@ class Interpreter:
 
     def __init__(self):
         self.lts = PseudoCompiledLTS()
-        self.func_lts_map = {}
+        self.func_lts_map: Dict[str, PseudoCompiledLTS] = {}
+        self.calling_stack: List[Tuple[str, str]] = []
         self.current_state = self.lts.get_init_state()
         self.complie_patterns()
 
@@ -358,7 +391,7 @@ class Interpreter:
             comp_op, remain = self.get_pattern_and_remain(
                 self.compare_operator_jp_pattern, remain, exception
             )
-            if dry_run:
+            if dry_run or val is None or val2 is None:
                 return None, remain
             return self.JP_OPERATOR_FUNC_MAP[comp_op](val, val2), remain
 
@@ -386,7 +419,7 @@ class Interpreter:
 
         if stack is not None:
             stack.append(op)
-        if dry_run:
+        if dry_run or val is None or val2 is None:
             return None, remain
         return self.OPERATOR_FUNC_MAP[op](val, val2), remain
 
@@ -458,7 +491,15 @@ class Interpreter:
                     exception.InvalidFuncCallException,
                 )
                 if not dry_run:
-                    return self.execute_lts(self.func_lts_map[name], vars), remain
+                    # 関数の計算結果がfunc_resultsに保存されていたらそれを取り出す
+                    if name in self.func_lts_map[name].func_results:
+                        result = self.func_lts_map[name].func_results[name]
+                        del self.func_lts_map[name].func_results[name]
+                        return result, remain
+                    # なければ関数の計算を続ける
+                    else:
+                        self.execute_line(entry_func=name, vars=vars)
+                        return None, remain
                 return None, remain
             if name not in lts.name_val_map:
                 raise exception.NameNotDefinedException(name)
@@ -717,7 +758,9 @@ class Interpreter:
         )
         while res:
             _, remain = res
-            _, remain = self.interpret_arithmetic_formula(remain, lts=lts, dry_run=dry_run)
+            _, remain = self.interpret_arithmetic_formula(
+                remain, lts=lts, dry_run=dry_run
+            )
             _, remain = self.get_pattern_and_remain(
                 self.square_bracket_end_pattern,
                 remain,
@@ -1376,11 +1419,52 @@ class Interpreter:
             raise exception.InvalidFuncCallException()
         for arg, arg_val in zip(lts.arg_list, vars):
             lts.name_val_map[arg] = arg_val
-        state = lts.init_state
-        val = None
-        while state is not None:
-            state, val = self.fire_transition(state, lts)
-        return val
+        self.init_execution(lts)
+        while self.execute_line():
+            pass
+        if "メイン関数" in lts.func_results:
+            return lts.func_results["メイン関数"]
+        return None
+
+    def execute_line(self, entry_func: str | None = None, vars: List[str] = []):
+        # entry_funcが設定されていたら対応する関数を呼び出す準備をする
+        if entry_func is not None:
+            init_state = self.func_lts_map[entry_func].init_state
+            self.calling_stack.append(self.calling_func_state)
+            self.calling_func_state = None
+            self.calling_stack.append((entry_func, init_state))
+            lts = self.func_lts_map[entry_func]
+            for arg, arg_val in zip(lts.arg_list, vars):
+                lts.name_val_map[arg] = arg_val
+            return True
+        if len(self.calling_stack) == 0:
+            return False
+        func_name, state = self.calling_stack.pop()
+        self.calling_func_state = (func_name, state)
+        lts = self.func_lts_map[func_name]
+        print(
+            self.calling_stack,
+            self.calling_func_state,
+            lts.func_results,
+            lts.name_val_map,
+        )
+        state, val = self.fire_transition(state, lts)
+        if state is not None and self.calling_func_state is not None:
+            self.calling_stack.append((func_name, state))
+        else:
+            lts.func_results[func_name] = val
+
+        return True
+
+    def is_ended(self):
+        return len(self.calling_stack) == 0
+
+    def init_execution(self, lts: PseudoCompiledLTS | None = None):
+        if lts is None:
+            lts = self.lts
+        self.func_lts_map["メイン関数"] = lts
+        self.calling_stack.clear()
+        self.calling_stack.append(("メイン関数", lts.init_state))
 
     def fire_transition(self, state: str, lts: PseudoCompiledLTS):
         # 基本的に最初の遷移ラベルは使うのでここで取得してしまう
@@ -1389,7 +1473,9 @@ class Interpreter:
         if lts.get_state_type(state) in [StateType.IF, StateType.WHILE]:
             return self.get_transition_on_condition_state(state, lts)
         if lts.get_state_type(state) == StateType.FOR:
-            name, from_val, to_val, increment_val = self.process_for_sentence(label, lts=lts)
+            name, from_val, to_val, increment_val = self.process_for_sentence(
+                label, lts=lts
+            )
             if lts.name_val_map[name] is None:
                 lts.name_val_map[name] = from_val
             elif lts.name_val_map[name] + increment_val <= to_val:
@@ -1422,3 +1508,24 @@ class Interpreter:
                 break
             val, _ = self.interpret_arithmetic_formula(label, lts=lts)
         return lts.get_transition_state(state, label), val
+
+    def get_lts_dict(self):
+        lts_dict = {}
+        for lts in self.func_lts_map:
+            lts_dict[lts] = self.func_lts_map[lts].get_lts_as_dict()
+
+        return lts_dict
+
+    def get_execution_dict(self):
+        execution_dict = {
+            "LTS": self.get_lts_dict(),
+            "calling_stack": self.calling_stack,
+        }
+        return execution_dict
+
+    def set_lts_dict(self, execution_dict):
+        self.calling_stack = execution_dict["calling_stack"]
+        lts_dict = execution_dict["LTS"]
+        for name in lts_dict:
+            self.func_lts_map[name] = PseudoCompiledLTS(data=lts_dict[name])
+        self.lts = self.func_lts_map["メイン関数"]
