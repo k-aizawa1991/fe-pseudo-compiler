@@ -21,12 +21,29 @@ class PseudoCompiledLTS(LabeledTransitionSystem):
     def __init__(
         self,
         init_state_name: str = None,
+        data: Dict[
+            str,
+            str
+            | Dict[
+                str,
+                int
+                | float
+                | str
+                | bool
+                | List[int | float | str | bool]
+                | Dict[str, str | float | str | bool | List[int | float | str | bool]],
+            ],
+        ]
+        | None = None,
     ):
         super().__init__(init_state_name)
         self.state_type_map: Dict[str, StateType] = {}
         self.arg_list: List[str] = []
         self.name_val_map: Dict[str, str | int | float | bool] = {}
         self.name_type_map: Dict[str, str] = {}
+        self.func_results: Dict[str, str | int | float | bool] = {}
+        if data is not None:
+            self.set_lts_as_dict(data)
 
     def set_state_type(self, state: str, state_type: StateType):
         if state not in self.transitions:
@@ -39,6 +56,23 @@ class PseudoCompiledLTS(LabeledTransitionSystem):
         if state not in self.state_type_map:
             return StateType.UNDEFINED
         return self.state_type_map[state]
+
+    def get_lts_as_dict(self):
+        lts_dict = super().get_lts_as_dict()
+        lts_dict["state_type_map"] = self.state_type_map
+        lts_dict["arg_list"] = self.arg_list
+        lts_dict["name_val_map"] = self.name_val_map
+        lts_dict["name_type_map"] = self.name_type_map
+        lts_dict["func_results"] = self.func_results
+        return lts_dict
+
+    def set_lts_as_dict(self, lts_dict):
+        super().set_lts_as_dict(lts_dict)
+        self.state_type_map = lts_dict["state_type_map"]
+        self.arg_list = lts_dict["arg_list"]
+        self.name_val_map = lts_dict["name_val_map"]
+        self.name_type_map = lts_dict["name_type_map"]
+        self.func_results = lts_dict["func_results"]
 
 
 class Interpreter:

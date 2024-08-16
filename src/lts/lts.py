@@ -74,3 +74,17 @@ class LabeledTransitionSystem:
             for transition in self.transitions[state]:
                 lts_str += f"  {str(transition)}-> {str(self.transitions[state][transition])} \n"
         return lts_str
+
+    def get_lts_as_dict(self):
+        lts_dict = {"init_state": self.init_state, "states": {}}
+        for state in self.transitions:
+            lts_dict["states"][state] = {}
+            for label in self.transitions[state]:
+                lts_dict["states"][state][label] = self.transitions[state][label]
+        return lts_dict
+
+    def set_lts_as_dict(self, lts_dict):
+        self.init_state = lts_dict["init_state"]
+        for source in lts_dict["states"]:
+            for label in lts_dict["states"][source]:
+                self.add_transition(source, label, lts_dict["states"][source][label])
