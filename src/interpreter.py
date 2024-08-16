@@ -51,9 +51,7 @@ class Interpreter:
     # <日本語比較開始演算子>
     COMPARE_START_OPERATOR_JP = "が"
     # <日本語比較演算子>
-    COMPARE_OPERATOR_JP = (
-        "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?|でない|である|で割り切れる"
-    )
+    COMPARE_OPERATOR_JP = "(と|に)等し(い|くない)|以上|以下|より(大きい|小さい)|未満|未定義(でない)?|でない|である|で割り切れる"
     ARRAY_APPEND_START = "の末尾\\s*に\\s*"
     ARRAY_APPEND_END = "を追加する"
     VALUE = "の値"
@@ -171,7 +169,7 @@ class Interpreter:
         "未満": lambda val1, val2: val1 < val2,
         "でない": lambda val1, val2: val1 is not val2,
         "である": lambda val1, val2: val1 is val2,
-        "で割り切れる": lambda val1, val2: (val1 % val2) == 0
+        "で割り切れる": lambda val1, val2: (val1 % val2) == 0,
     }
     JP_SINGLE_OPERATOR_FUNC_MAP = {
         "未定義": lambda val: val is None,
@@ -247,7 +245,7 @@ class Interpreter:
 
     def __init__(self):
         self.lts = PseudoCompiledLTS()
-        self.func_lts_map = {}
+        self.func_lts_map: Dict[str, PseudoCompiledLTS] = {}
         self.current_state = self.lts.get_init_state()
         self.complie_patterns()
 
@@ -717,7 +715,9 @@ class Interpreter:
         )
         while res:
             _, remain = res
-            _, remain = self.interpret_arithmetic_formula(remain, lts=lts, dry_run=dry_run)
+            _, remain = self.interpret_arithmetic_formula(
+                remain, lts=lts, dry_run=dry_run
+            )
             _, remain = self.get_pattern_and_remain(
                 self.square_bracket_end_pattern,
                 remain,
@@ -1389,7 +1389,9 @@ class Interpreter:
         if lts.get_state_type(state) in [StateType.IF, StateType.WHILE]:
             return self.get_transition_on_condition_state(state, lts)
         if lts.get_state_type(state) == StateType.FOR:
-            name, from_val, to_val, increment_val = self.process_for_sentence(label, lts=lts)
+            name, from_val, to_val, increment_val = self.process_for_sentence(
+                label, lts=lts
+            )
             if lts.name_val_map[name] is None:
                 lts.name_val_map[name] = from_val
             elif lts.name_val_map[name] + increment_val <= to_val:
